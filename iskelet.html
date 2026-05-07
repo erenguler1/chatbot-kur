@@ -1,0 +1,2544 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ChatBotKur — Akıllı SSS Chatbot Platformu</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<style>
+  :root {
+    --bg-app: #0a0a0a;
+    --bg-content: #111111;
+    --bg-card: #1a1a1a;
+    --bg-card-hover: #222222;
+    --border: #262626;
+    --border-strong: #333333;
+    --text: #fafafa;
+    --text-muted: #a3a3a3;
+    --text-dim: #737373;
+    --accent: #f43f5e;
+    --accent-hover: #e11d48;
+    --accent-soft: rgba(244, 63, 94, 0.12);
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --info: #3b82f6;
+    --radius-card: 12px;
+    --radius-input: 8px;
+    --radius-btn: 8px;
+    --transition: 200ms ease;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg-app);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+  input, textarea, select { font-family: inherit; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { color: var(--accent-hover); }
+
+  /* ============ AUTH SCREEN ============ */
+  .auth-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background:
+      radial-gradient(circle at 20% 20%, rgba(244, 63, 94, 0.08) 0%, transparent 40%),
+      radial-gradient(circle at 80% 80%, rgba(244, 63, 94, 0.05) 0%, transparent 40%),
+      var(--bg-app);
+  }
+  .auth-card {
+    width: 100%;
+    max-width: 420px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    padding: 36px 32px;
+  }
+  .auth-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    justify-content: center;
+    margin-bottom: 28px;
+  }
+  .auth-logo-icon {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+  }
+  .auth-logo-text {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .auth-title {
+    font-size: 22px;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 6px;
+    letter-spacing: -0.02em;
+  }
+  .auth-subtitle {
+    text-align: center;
+    color: var(--text-muted);
+    margin-bottom: 28px;
+    font-size: 14px;
+  }
+  .form-group { margin-bottom: 16px; }
+  .form-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 6px;
+    color: var(--text);
+  }
+  .form-input, .form-textarea, .form-select {
+    width: 100%;
+    background: var(--bg-app);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-input);
+    padding: 10px 12px;
+    color: var(--text);
+    font-size: 14px;
+    transition: border var(--transition);
+  }
+  .form-input:focus, .form-textarea:focus, .form-select:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  .form-textarea { resize: vertical; min-height: 90px; }
+  .form-error {
+    color: var(--danger);
+    font-size: 12px;
+    margin-top: 4px;
+    display: none;
+  }
+  .form-error.visible { display: block; }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border-radius: var(--radius-btn);
+    font-weight: 500;
+    font-size: 14px;
+    transition: all var(--transition);
+    white-space: nowrap;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+  }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-secondary {
+    background: var(--bg-card);
+    color: var(--text);
+    border: 1px solid var(--border-strong);
+  }
+  .btn-secondary:hover { background: var(--bg-card-hover); }
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-muted);
+  }
+  .btn-ghost:hover { background: var(--bg-card); color: var(--text); }
+  .btn-danger {
+    background: var(--danger);
+    color: white;
+  }
+  .btn-danger:hover { background: #dc2626; }
+  .btn-block { width: 100%; }
+  .btn-sm { padding: 6px 10px; font-size: 13px; }
+  .btn-icon {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border-radius: 6px;
+  }
+
+  .auth-divider {
+    display: flex;
+    align-items: center;
+    margin: 20px 0;
+    color: var(--text-dim);
+    font-size: 12px;
+  }
+  .auth-divider::before, .auth-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+  .auth-divider span { padding: 0 12px; }
+
+  .google-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 16px;
+    background: var(--bg-app);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-btn);
+    color: var(--text);
+    font-weight: 500;
+    transition: all var(--transition);
+  }
+  .google-btn:hover { background: var(--bg-card-hover); }
+
+  .auth-toggle {
+    text-align: center;
+    margin-top: 20px;
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+  .auth-toggle button {
+    color: var(--accent);
+    font-weight: 500;
+    margin-left: 4px;
+  }
+  .auth-toggle button:hover { text-decoration: underline; }
+
+  /* ============ APP SHELL ============ */
+  .app-shell {
+    display: none;
+    min-height: 100vh;
+  }
+  .app-shell.active { display: block; }
+
+  .sidebar {
+    position: fixed;
+    top: 0; left: 0;
+    width: 240px;
+    height: 100vh;
+    background: var(--bg-app);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 16px 12px;
+    z-index: 50;
+    transition: transform var(--transition);
+  }
+  .sidebar-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px 16px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar-logo-icon {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    background: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+  }
+  .sidebar-logo-text {
+    font-weight: 700;
+    font-size: 16px;
+    letter-spacing: -0.01em;
+  }
+  .nav { flex: 1; padding-top: 8px; }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    color: var(--text-muted);
+    font-weight: 500;
+    font-size: 14px;
+    margin-bottom: 2px;
+    transition: all var(--transition);
+    width: 100%;
+    text-align: left;
+  }
+  .nav-item:hover {
+    background: var(--bg-card);
+    color: var(--text);
+  }
+  .nav-item.active {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+  .sidebar-user {
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 10px 4px;
+  }
+  .avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), #8b5cf6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+  .avatar-lg { width: 56px; height: 56px; font-size: 18px; }
+  .sidebar-user-info { flex: 1; min-width: 0; }
+  .sidebar-user-name {
+    font-size: 13px;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .sidebar-user-email {
+    font-size: 11px;
+    color: var(--text-dim);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .sidebar-user-logout {
+    color: var(--text-dim);
+    padding: 6px;
+    border-radius: 6px;
+  }
+  .sidebar-user-logout:hover { color: var(--danger); background: var(--bg-card); }
+
+  /* ============ MAIN CONTENT ============ */
+  .main {
+    margin-left: 240px;
+    min-height: 100vh;
+    background: var(--bg-content);
+  }
+  .topbar {
+    height: 60px;
+    background: var(--bg-content);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 30;
+  }
+  .topbar-title {
+    font-size: 16px;
+    font-weight: 600;
+    flex: 1;
+  }
+  .search-box {
+    position: relative;
+    width: 280px;
+  }
+  .search-box svg {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    color: var(--text-dim);
+  }
+  .search-box input {
+    width: 100%;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px 8px 34px;
+    color: var(--text);
+    font-size: 13px;
+  }
+  .search-box input:focus { outline: none; border-color: var(--border-strong); }
+
+  .icon-btn {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    position: relative;
+    transition: all var(--transition);
+  }
+  .icon-btn:hover { background: var(--bg-card); color: var(--text); }
+  .badge {
+    position: absolute;
+    top: 6px; right: 6px;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  .topbar-profile {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    padding: 4px 8px 4px 4px;
+    border-radius: 8px;
+    transition: background var(--transition);
+  }
+  .topbar-profile:hover { background: var(--bg-card); }
+  .topbar-profile-name {
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .dropdown-anchor { position: relative; }
+  .topbar-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    min-width: 240px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-strong);
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    padding: 6px;
+    z-index: 60;
+    display: none;
+  }
+  .topbar-dropdown.active { display: block; animation: fadeIn 150ms ease; }
+  .dropdown-header {
+    padding: 8px 10px 10px;
+    font-weight: 600;
+    font-size: 13px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 4px;
+  }
+  .dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 10px;
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 13px;
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+  }
+  .dropdown-item:hover { background: var(--bg-card-hover); }
+  .dropdown-item.danger { color: var(--danger); }
+  .dropdown-item svg { width: 16px; height: 16px; }
+  .dropdown-empty {
+    padding: 22px 12px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+  .notif-item {
+    display: flex;
+    gap: 10px;
+    padding: 10px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .notif-item:hover { background: var(--bg-card-hover); }
+  .notif-item-icon {
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .notif-item-text { font-size: 13px; margin-bottom: 2px; }
+  .notif-item-time { font-size: 11px; color: var(--text-dim); }
+
+  .page { padding: 24px; display: none; }
+  .page.active { display: block; }
+  .page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .page-title {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .page-subtitle {
+    color: var(--text-muted);
+    margin-top: 4px;
+    font-size: 13px;
+  }
+
+  /* ============ STAT CARDS ============ */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    padding: 18px;
+    transition: border var(--transition);
+  }
+  .stat-card:hover { border-color: var(--border-strong); }
+  .stat-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .stat-card-label {
+    font-size: 13px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+  .stat-card-icon {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .stat-card-value {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin-bottom: 8px;
+  }
+  .stat-card-trend {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+  }
+  .trend-up { color: var(--success); display: flex; align-items: center; gap: 2px; }
+  .trend-down { color: var(--danger); display: flex; align-items: center; gap: 2px; }
+  .stat-card-spark {
+    height: 28px;
+    margin-top: 10px;
+    display: flex;
+    align-items: end;
+    gap: 3px;
+  }
+  .spark-bar {
+    flex: 1;
+    background: var(--accent-soft);
+    border-radius: 2px;
+    min-height: 4px;
+  }
+
+  /* ============ DASHBOARD GRID ============ */
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 16px;
+  }
+  .panel {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    padding: 20px;
+  }
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .panel-title {
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .chart-area {
+    height: 220px;
+    display: flex;
+    align-items: end;
+    gap: 8px;
+    padding: 10px 0;
+  }
+  .chart-bar {
+    flex: 1;
+    background: linear-gradient(180deg, var(--accent), var(--accent-soft));
+    border-radius: 4px 4px 0 0;
+    position: relative;
+    transition: opacity var(--transition);
+    min-height: 8px;
+  }
+  .chart-bar:hover { opacity: 0.85; }
+  .chart-bar::after {
+    content: attr(data-day);
+    position: absolute;
+    bottom: -22px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  .chart-area + .chart-labels {
+    margin-top: 26px;
+  }
+
+  .activity-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .activity-item {
+    display: flex;
+    align-items: start;
+    gap: 12px;
+    padding: 10px;
+    border-radius: 8px;
+    transition: background var(--transition);
+  }
+  .activity-item:hover { background: var(--bg-card-hover); }
+  .activity-icon {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    background: var(--bg-app);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+  .activity-icon.success { color: var(--success); background: rgba(16, 185, 129, 0.1); }
+  .activity-icon.info { color: var(--info); background: rgba(59, 130, 246, 0.1); }
+  .activity-icon.warning { color: var(--warning); background: rgba(245, 158, 11, 0.1); }
+  .activity-icon.accent { color: var(--accent); background: var(--accent-soft); }
+  .activity-content { flex: 1; min-width: 0; }
+  .activity-text {
+    font-size: 13px;
+    margin-bottom: 2px;
+  }
+  .activity-text strong { font-weight: 600; }
+  .activity-meta {
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 500;
+  }
+  .status-success { background: rgba(16, 185, 129, 0.1); color: var(--success); }
+  .status-warning { background: rgba(245, 158, 11, 0.1); color: var(--warning); }
+  .status-danger { background: rgba(239, 68, 68, 0.1); color: var(--danger); }
+  .status-info { background: rgba(59, 130, 246, 0.1); color: var(--info); }
+  .status-neutral { background: var(--bg-app); color: var(--text-muted); }
+
+  /* ============ TABLE ============ */
+  .table-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .toolbar-search {
+    position: relative;
+    width: 260px;
+  }
+  .toolbar-search svg {
+    position: absolute;
+    left: 10px; top: 50%;
+    transform: translateY(-50%);
+    width: 16px; height: 16px;
+    color: var(--text-dim);
+  }
+  .toolbar-search input {
+    width: 100%;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px 8px 34px;
+    color: var(--text);
+    font-size: 13px;
+  }
+  .toolbar-search input:focus { outline: none; border-color: var(--border-strong); }
+  .filter-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-muted);
+    font-size: 13px;
+    transition: all var(--transition);
+  }
+  .filter-chip:hover { border-color: var(--border-strong); color: var(--text); }
+  .filter-chip.active {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .table-wrapper {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    overflow: hidden;
+  }
+  .table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .table thead th {
+    text-align: left;
+    padding: 12px 16px;
+    background: var(--bg-app);
+    color: var(--text-muted);
+    font-weight: 500;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    user-select: none;
+    transition: color var(--transition);
+  }
+  .table thead th:hover { color: var(--text); }
+  .table thead th .sort-icon {
+    display: inline-block;
+    width: 10px;
+    color: var(--text-dim);
+    margin-left: 4px;
+  }
+  .table tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background var(--transition);
+  }
+  .table tbody tr:last-child { border-bottom: none; }
+  .table tbody tr:hover { background: var(--bg-card-hover); }
+  .table td {
+    padding: 14px 16px;
+    vertical-align: middle;
+  }
+  .table-bot-name {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .bot-avatar {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .row-actions {
+    display: flex;
+    gap: 4px;
+  }
+  .row-action {
+    width: 30px; height: 30px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    transition: all var(--transition);
+  }
+  .row-action:hover { background: var(--bg-app); color: var(--text); }
+  .row-action.danger:hover { color: var(--danger); }
+
+  .table-empty {
+    padding: 60px 20px;
+    text-align: center;
+    color: var(--text-muted);
+  }
+  .table-empty-icon {
+    margin: 0 auto 12px;
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    background: var(--bg-app);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-dim);
+  }
+
+  .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  .pagination-pages {
+    display: flex;
+    gap: 4px;
+  }
+  .page-btn {
+    min-width: 30px;
+    height: 30px;
+    padding: 0 8px;
+    border-radius: 6px;
+    color: var(--text-muted);
+    font-size: 13px;
+    transition: all var(--transition);
+  }
+  .page-btn:hover { background: var(--bg-app); color: var(--text); }
+  .page-btn.active { background: var(--accent); color: white; }
+  .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* ============ MODAL ============ */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 24px;
+  }
+  .modal-overlay.active {
+    display: flex;
+    animation: fadeIn 200ms ease;
+  }
+  .modal {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    width: 100%;
+    max-width: 480px;
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: slideUp 200ms ease;
+  }
+  .modal-lg { max-width: 600px; }
+  .modal-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .modal-title {
+    font-size: 16px;
+    font-weight: 600;
+  }
+  .modal-body {
+    padding: 24px;
+  }
+  .modal-footer {
+    padding: 16px 24px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes slideUp {
+    from { transform: translateY(12px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  @keyframes slideInRight {
+    from { transform: translateX(120%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+  @keyframes slideOutRight {
+    to { transform: translateX(120%); opacity: 0; }
+  }
+
+  /* ============ TOAST ============ */
+  .toast-container {
+    position: fixed;
+    top: 20px; right: 20px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .toast {
+    min-width: 280px;
+    max-width: 380px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-strong);
+    border-radius: 10px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    animation: slideInRight 250ms ease;
+  }
+  .toast.removing { animation: slideOutRight 250ms ease forwards; }
+  .toast-icon {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .toast.success .toast-icon { background: rgba(16, 185, 129, 0.15); color: var(--success); }
+  .toast.error .toast-icon { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
+  .toast.info .toast-icon { background: rgba(59, 130, 246, 0.15); color: var(--info); }
+  .toast-message {
+    flex: 1;
+    font-size: 13px;
+  }
+
+  /* ============ BOT DETAY ============ */
+  .detail-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 16px;
+  }
+  .qa-item {
+    background: var(--bg-app);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 10px;
+    transition: border var(--transition);
+  }
+  .qa-item:hover { border-color: var(--border-strong); }
+  .qa-question {
+    font-weight: 500;
+    margin-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    gap: 12px;
+  }
+  .qa-question-text { flex: 1; }
+  .qa-answer {
+    color: var(--text-muted);
+    font-size: 13px;
+    line-height: 1.55;
+  }
+  .qa-empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-muted);
+    border: 1px dashed var(--border-strong);
+    border-radius: 10px;
+  }
+
+  .embed-code {
+    background: var(--bg-app);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    font-family: 'SF Mono', Monaco, Consolas, monospace;
+    font-size: 12px;
+    color: var(--text-muted);
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+    line-height: 1.6;
+    margin-bottom: 12px;
+  }
+
+  /* ============ AYARLAR ============ */
+  .settings-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    padding: 22px;
+    margin-bottom: 16px;
+  }
+  .settings-section h3 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .settings-section .section-desc {
+    color: var(--text-muted);
+    font-size: 13px;
+    margin-bottom: 18px;
+  }
+  .danger-zone {
+    border-color: rgba(239, 68, 68, 0.3);
+  }
+  .danger-zone h3 { color: var(--danger); }
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .toggle-row:last-child { border-bottom: none; }
+  .toggle-info {
+    flex: 1;
+  }
+  .toggle-label {
+    font-weight: 500;
+    font-size: 14px;
+    margin-bottom: 2px;
+  }
+  .toggle-desc {
+    color: var(--text-muted);
+    font-size: 12px;
+  }
+  .toggle-switch {
+    width: 40px;
+    height: 22px;
+    background: var(--border-strong);
+    border-radius: 999px;
+    position: relative;
+    cursor: pointer;
+    transition: background var(--transition);
+    flex-shrink: 0;
+  }
+  .toggle-switch::after {
+    content: '';
+    position: absolute;
+    width: 16px; height: 16px;
+    background: white;
+    border-radius: 50%;
+    top: 3px; left: 3px;
+    transition: transform var(--transition);
+  }
+  .toggle-switch.on {
+    background: var(--accent);
+  }
+  .toggle-switch.on::after {
+    transform: translateX(18px);
+  }
+
+  .plan-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+    background: var(--bg-app);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  .plan-icon {
+    width: 48px; height: 48px;
+    border-radius: 10px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .plan-info { flex: 1; }
+  .plan-name { font-weight: 600; margin-bottom: 2px; }
+  .plan-meta { color: var(--text-muted); font-size: 12px; }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  /* ============ MOBILE ============ */
+  .menu-toggle {
+    display: none;
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    align-items: center;
+    justify-content: center;
+    color: var(--text);
+  }
+  .sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 40;
+  }
+
+  @media (max-width: 1024px) {
+    .sidebar { transform: translateX(-100%); }
+    .sidebar.open { transform: translateX(0); }
+    .sidebar-overlay.active { display: block; }
+    .main { margin-left: 0; }
+    .menu-toggle { display: flex; }
+    .search-box { width: 180px; }
+    .dashboard-grid { grid-template-columns: 1fr; }
+    .detail-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 640px) {
+    .search-box { display: none; }
+    .topbar-profile-name { display: none; }
+    .page { padding: 16px; }
+    .form-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ AUTH SCREEN ============ -->
+<div id="authScreen" class="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="auth-logo-icon"><i data-lucide="message-circle" style="width:20px;height:20px"></i></div>
+      <div class="auth-logo-text">ChatBotKur</div>
+    </div>
+
+    <!-- Login Form -->
+    <div id="loginForm">
+      <div class="auth-title">Tekrar hoş geldin</div>
+      <div class="auth-subtitle">Hesabına giriş yap ve botlarını yönet</div>
+
+      <button class="google-btn" onclick="fakeAuth('Google ile giriş yapıldı')">
+        <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.79 2.72v2.26h2.9a8.78 8.78 0 0 0 2.69-6.62z"/><path fill="#34A853" d="M9 18a8.6 8.6 0 0 0 5.95-2.18l-2.9-2.26a5.4 5.4 0 0 1-8.05-2.83H1v2.33A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.96 10.71a5.4 5.4 0 0 1 0-3.42V4.96H1A9 9 0 0 0 1 13l2.96-2.29z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58A9 9 0 0 0 1 4.96l2.96 2.33A5.36 5.36 0 0 1 9 3.58z"/></svg>
+        Google ile Giriş Yap
+      </button>
+
+      <div class="auth-divider"><span>veya e-posta ile</span></div>
+
+      <form id="loginFormEl" onsubmit="handleLogin(event)">
+        <div class="form-group">
+          <label class="form-label" for="loginEmail">E-posta</label>
+          <input class="form-input" type="email" id="loginEmail" placeholder="ornek@email.com" required>
+          <div class="form-error" id="loginEmailError">Geçerli bir e-posta gir.</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="loginPassword">Şifre</label>
+          <input class="form-input" type="password" id="loginPassword" placeholder="••••••••" required>
+          <div class="form-error" id="loginPasswordError">Şifre en az 6 karakter olmalı.</div>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Giriş Yap</button>
+      </form>
+
+      <div class="auth-toggle">
+        Hesabın yok mu?
+        <button onclick="toggleAuthForm('register')">Kayıt Ol</button>
+      </div>
+    </div>
+
+    <!-- Register Form -->
+    <div id="registerForm" style="display:none">
+      <div class="auth-title">Hemen başla</div>
+      <div class="auth-subtitle">14 gün ücretsiz dene, kart bilgisi gerekmez</div>
+
+      <button class="google-btn" onclick="fakeAuth('Google ile kayıt olundu')">
+        <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.79 2.72v2.26h2.9a8.78 8.78 0 0 0 2.69-6.62z"/><path fill="#34A853" d="M9 18a8.6 8.6 0 0 0 5.95-2.18l-2.9-2.26a5.4 5.4 0 0 1-8.05-2.83H1v2.33A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.96 10.71a5.4 5.4 0 0 1 0-3.42V4.96H1A9 9 0 0 0 1 13l2.96-2.29z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58A9 9 0 0 0 1 4.96l2.96 2.33A5.36 5.36 0 0 1 9 3.58z"/></svg>
+        Google ile Kayıt Ol
+      </button>
+
+      <div class="auth-divider"><span>veya e-posta ile</span></div>
+
+      <form id="registerFormEl" onsubmit="handleRegister(event)">
+        <div class="form-group">
+          <label class="form-label" for="regName">Ad Soyad</label>
+          <input class="form-input" type="text" id="regName" placeholder="Mehmet Yılmaz" required>
+          <div class="form-error" id="regNameError">İsmini gir.</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="regEmail">E-posta</label>
+          <input class="form-input" type="email" id="regEmail" placeholder="ornek@email.com" required>
+          <div class="form-error" id="regEmailError">Geçerli bir e-posta gir.</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="regPassword">Şifre</label>
+          <input class="form-input" type="password" id="regPassword" placeholder="En az 6 karakter" required>
+          <div class="form-error" id="regPasswordError">Şifre en az 6 karakter olmalı.</div>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Hesap Oluştur</button>
+      </form>
+
+      <div class="auth-toggle">
+        Zaten hesabın var mı?
+        <button onclick="toggleAuthForm('login')">Giriş Yap</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ APP SHELL ============ -->
+<div id="appShell" class="app-shell">
+
+  <div id="sidebarOverlay" class="sidebar-overlay" onclick="closeSidebar()"></div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-logo" onclick="navigate('dashboard')" style="cursor:pointer" role="button" tabindex="0">
+      <div class="sidebar-logo-icon"><i data-lucide="message-circle" style="width:18px;height:18px"></i></div>
+      <div class="sidebar-logo-text">ChatBotKur</div>
+    </div>
+
+    <nav class="nav">
+      <button class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')">
+        <i data-lucide="layout-dashboard"></i> Genel Bakış
+      </button>
+      <button class="nav-item" data-page="bots" onclick="navigate('bots')">
+        <i data-lucide="bot"></i> Botlarım
+      </button>
+      <button class="nav-item" data-page="conversations" onclick="navigate('conversations')">
+        <i data-lucide="messages-square"></i> Konuşmalar
+      </button>
+      <button class="nav-item" data-page="analytics" onclick="navigate('analytics')">
+        <i data-lucide="bar-chart-3"></i> Analitik
+      </button>
+      <button class="nav-item" data-page="integrations" onclick="navigate('integrations')">
+        <i data-lucide="plug"></i> Entegrasyonlar
+      </button>
+      <button class="nav-item" data-page="settings" onclick="navigate('settings')">
+        <i data-lucide="settings"></i> Ayarlar
+      </button>
+    </nav>
+
+    <div class="sidebar-user">
+      <div class="avatar" id="sidebarAvatar">MY</div>
+      <div class="sidebar-user-info">
+        <div class="sidebar-user-name" id="sidebarUserName">Mehmet Yılmaz</div>
+        <div class="sidebar-user-email" id="sidebarUserEmail">mehmet@kafemehmet.com</div>
+      </div>
+      <button class="sidebar-user-logout" onclick="logout()" title="Çıkış">
+        <i data-lucide="log-out" style="width:16px;height:16px"></i>
+      </button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <button class="menu-toggle" onclick="openSidebar()">
+        <i data-lucide="menu"></i>
+      </button>
+      <div class="topbar-title" id="topbarTitle">Genel Bakış</div>
+      <div class="search-box" onclick="document.getElementById('topbarSearchInput').focus()">
+        <i data-lucide="search"></i>
+        <input type="text" id="topbarSearchInput" placeholder="Ara...">
+      </div>
+      <div class="dropdown-anchor">
+        <button class="icon-btn" id="notifBtn" title="Bildirimler" onclick="toggleTopbarDropdown(event, 'notifDropdown')">
+          <i data-lucide="bell"></i>
+          <span class="badge"></span>
+        </button>
+        <div id="notifDropdown" class="topbar-dropdown" style="min-width:300px">
+          <div class="dropdown-header">Bildirimler</div>
+          <div class="notif-item">
+            <div class="notif-item-icon"><i data-lucide="message-circle" style="width:14px;height:14px"></i></div>
+            <div>
+              <div class="notif-item-text"><strong>Pizza Roma Asistanı</strong> bugün 47 yeni konuşma aldı</div>
+              <div class="notif-item-time">12 dakika önce</div>
+            </div>
+          </div>
+          <div class="notif-item">
+            <div class="notif-item-icon"><i data-lucide="alert-triangle" style="width:14px;height:14px"></i></div>
+            <div>
+              <div class="notif-item-text"><strong>Kuaför Ayşe Botu</strong> 12 cevapsız soru var</div>
+              <div class="notif-item-time">1 saat önce</div>
+            </div>
+          </div>
+          <div class="notif-item">
+            <div class="notif-item-icon"><i data-lucide="bot" style="width:14px;height:14px"></i></div>
+            <div>
+              <div class="notif-item-text">Yeni bot <strong>Pizza Roma Asistanı</strong> oluşturuldu</div>
+              <div class="notif-item-time">3 saat önce</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="dropdown-anchor">
+        <div class="topbar-profile" onclick="toggleTopbarDropdown(event, 'profileDropdown')">
+          <div class="avatar" id="topbarAvatar">MY</div>
+          <span class="topbar-profile-name" id="topbarUserName">Mehmet Yılmaz</span>
+          <i data-lucide="chevron-down" style="width:14px;height:14px;color:var(--text-muted)"></i>
+        </div>
+        <div id="profileDropdown" class="topbar-dropdown">
+          <button class="dropdown-item" onclick="closeTopbarDropdowns(); navigate('settings')"><i data-lucide="user"></i> Profil</button>
+          <button class="dropdown-item" onclick="closeTopbarDropdowns(); navigate('settings')"><i data-lucide="settings"></i> Ayarlar</button>
+          <button class="dropdown-item danger" onclick="closeTopbarDropdowns(); logout()"><i data-lucide="log-out"></i> Çıkış</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ DASHBOARD PAGE ============ -->
+    <div id="page-dashboard" class="page active">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Genel Bakış</div>
+          <div class="page-subtitle">Botlarının son 30 gündeki performansı</div>
+        </div>
+        <button class="btn btn-primary" onclick="navigate('bots'); setTimeout(openCreateBotModal, 200);">
+          <i data-lucide="plus" style="width:16px;height:16px"></i> Yeni Bot
+        </button>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-card-head">
+            <div class="stat-card-label">Toplam Konuşma</div>
+            <div class="stat-card-icon"><i data-lucide="messages-square" style="width:16px;height:16px"></i></div>
+          </div>
+          <div class="stat-card-value">12.847</div>
+          <div class="stat-card-trend">
+            <span class="trend-up"><i data-lucide="trending-up" style="width:12px;height:12px"></i> %18,2</span>
+            <span style="color:var(--text-dim)">geçen aya göre</span>
+          </div>
+          <div class="stat-card-spark">
+            <div class="spark-bar" style="height:40%"></div>
+            <div class="spark-bar" style="height:60%"></div>
+            <div class="spark-bar" style="height:35%"></div>
+            <div class="spark-bar" style="height:75%"></div>
+            <div class="spark-bar" style="height:55%"></div>
+            <div class="spark-bar" style="height:80%"></div>
+            <div class="spark-bar" style="height:95%"></div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-card-head">
+            <div class="stat-card-label">Aktif Bot</div>
+            <div class="stat-card-icon"><i data-lucide="bot" style="width:16px;height:16px"></i></div>
+          </div>
+          <div class="stat-card-value">8</div>
+          <div class="stat-card-trend">
+            <span class="trend-up"><i data-lucide="trending-up" style="width:12px;height:12px"></i> %12,5</span>
+            <span style="color:var(--text-dim)">2 yeni bot</span>
+          </div>
+          <div class="stat-card-spark">
+            <div class="spark-bar" style="height:30%"></div>
+            <div class="spark-bar" style="height:30%"></div>
+            <div class="spark-bar" style="height:50%"></div>
+            <div class="spark-bar" style="height:50%"></div>
+            <div class="spark-bar" style="height:70%"></div>
+            <div class="spark-bar" style="height:85%"></div>
+            <div class="spark-bar" style="height:100%"></div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-card-head">
+            <div class="stat-card-label">Aylık Mesaj</div>
+            <div class="stat-card-icon"><i data-lucide="send" style="width:16px;height:16px"></i></div>
+          </div>
+          <div class="stat-card-value">42.156</div>
+          <div class="stat-card-trend">
+            <span class="trend-up"><i data-lucide="trending-up" style="width:12px;height:12px"></i> %24,8</span>
+            <span style="color:var(--text-dim)">geçen aya göre</span>
+          </div>
+          <div class="stat-card-spark">
+            <div class="spark-bar" style="height:50%"></div>
+            <div class="spark-bar" style="height:30%"></div>
+            <div class="spark-bar" style="height:65%"></div>
+            <div class="spark-bar" style="height:45%"></div>
+            <div class="spark-bar" style="height:80%"></div>
+            <div class="spark-bar" style="height:90%"></div>
+            <div class="spark-bar" style="height:75%"></div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-card-head">
+            <div class="stat-card-label">Yanıt Oranı</div>
+            <div class="stat-card-icon"><i data-lucide="check-circle-2" style="width:16px;height:16px"></i></div>
+          </div>
+          <div class="stat-card-value">%92,4</div>
+          <div class="stat-card-trend">
+            <span class="trend-down"><i data-lucide="trending-down" style="width:12px;height:12px"></i> %1,2</span>
+            <span style="color:var(--text-dim)">geçen aya göre</span>
+          </div>
+          <div class="stat-card-spark">
+            <div class="spark-bar" style="height:90%"></div>
+            <div class="spark-bar" style="height:85%"></div>
+            <div class="spark-bar" style="height:95%"></div>
+            <div class="spark-bar" style="height:88%"></div>
+            <div class="spark-bar" style="height:92%"></div>
+            <div class="spark-bar" style="height:80%"></div>
+            <div class="spark-bar" style="height:92%"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dashboard-grid">
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">Günlük Konuşma Sayısı</div>
+              <div style="color:var(--text-muted);font-size:12px;margin-top:2px">Son 7 gün</div>
+            </div>
+            <button class="btn btn-secondary btn-sm">
+              <i data-lucide="download" style="width:14px;height:14px"></i> İndir
+            </button>
+          </div>
+          <div class="chart-area" id="weekChart">
+            <div class="chart-bar" data-day="Pzt" style="height:55%"></div>
+            <div class="chart-bar" data-day="Sal" style="height:72%"></div>
+            <div class="chart-bar" data-day="Çar" style="height:48%"></div>
+            <div class="chart-bar" data-day="Per" style="height:88%"></div>
+            <div class="chart-bar" data-day="Cum" style="height:96%"></div>
+            <div class="chart-bar" data-day="Cmt" style="height:64%"></div>
+            <div class="chart-bar" data-day="Paz" style="height:42%"></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">Son Aktiviteler</div>
+            <button class="btn btn-ghost btn-sm">Tümü</button>
+          </div>
+          <div class="activity-list">
+            <div class="activity-item">
+              <div class="activity-icon success"><i data-lucide="check" style="width:14px;height:14px"></i></div>
+              <div class="activity-content">
+                <div class="activity-text"><strong>Mehmet'in Kafesi Asistanı</strong> bota 3 yeni soru eklendi</div>
+                <div class="activity-meta">12 dakika önce · Mehmet Yılmaz</div>
+              </div>
+            </div>
+            <div class="activity-item">
+              <div class="activity-icon info"><i data-lucide="message-circle" style="width:14px;height:14px"></i></div>
+              <div class="activity-content">
+                <div class="activity-text"><strong>Güzellik Salonu Botu</strong> bugün 47 konuşma gerçekleşti</div>
+                <div class="activity-meta">1 saat önce · Sistem</div>
+              </div>
+            </div>
+            <div class="activity-item">
+              <div class="activity-icon accent"><i data-lucide="bot" style="width:14px;height:14px"></i></div>
+              <div class="activity-content">
+                <div class="activity-text">Yeni bot <strong>Pizza Roma Asistanı</strong> oluşturuldu</div>
+                <div class="activity-meta">3 saat önce · Mehmet Yılmaz</div>
+              </div>
+            </div>
+            <div class="activity-item">
+              <div class="activity-icon warning"><i data-lucide="alert-triangle" style="width:14px;height:14px"></i></div>
+              <div class="activity-content">
+                <div class="activity-text"><strong>Kuaför Ayşe Botu</strong> 12 cevapsız soru var</div>
+                <div class="activity-meta">5 saat önce · Sistem</div>
+              </div>
+            </div>
+            <div class="activity-item">
+              <div class="activity-icon success"><i data-lucide="link" style="width:14px;height:14px"></i></div>
+              <div class="activity-content">
+                <div class="activity-text"><strong>Berber Ali Botu</strong> web sitesine entegre edildi</div>
+                <div class="activity-meta">Dün · Mehmet Yılmaz</div>
+              </div>
+            </div>
+            <div class="activity-item">
+              <div class="activity-icon info"><i data-lucide="user-plus" style="width:14px;height:14px"></i></div>
+              <div class="activity-content">
+                <div class="activity-text"><strong>Sefa Ajans</strong> hesabınıza eklendi</div>
+                <div class="activity-meta">2 gün önce · Davet kabul edildi</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ BOTS LIST PAGE ============ -->
+    <div id="page-bots" class="page">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Botlarım</div>
+          <div class="page-subtitle">Tüm chatbotlarını buradan yönet</div>
+        </div>
+        <button class="btn btn-primary" onclick="openCreateBotModal()">
+          <i data-lucide="plus" style="width:16px;height:16px"></i> Yeni Bot Oluştur
+        </button>
+      </div>
+
+      <div class="table-toolbar">
+        <div class="toolbar-left">
+          <div class="toolbar-search">
+            <i data-lucide="search"></i>
+            <input type="text" id="botSearch" placeholder="Bot ara..." oninput="filterBots()">
+          </div>
+          <button class="filter-chip active" data-filter="all" onclick="setFilter('all')">Tümü</button>
+          <button class="filter-chip" data-filter="active" onclick="setFilter('active')">Aktif</button>
+          <button class="filter-chip" data-filter="paused" onclick="setFilter('paused')">Duraklatıldı</button>
+          <button class="filter-chip" data-filter="draft" onclick="setFilter('draft')">Taslak</button>
+        </div>
+        <button class="btn btn-secondary btn-sm">
+          <i data-lucide="download" style="width:14px;height:14px"></i> Dışa Aktar
+        </button>
+      </div>
+
+      <div class="table-wrapper">
+        <table class="table" id="botsTable">
+          <thead>
+            <tr>
+              <th data-sort="name" onclick="sortBots('name')">Bot Adı <span class="sort-icon">↕</span></th>
+              <th data-sort="conversations" onclick="sortBots('conversations')">Konuşma <span class="sort-icon">↕</span></th>
+              <th data-sort="questions" onclick="sortBots('questions')">Soru Sayısı <span class="sort-icon">↕</span></th>
+              <th data-sort="status" onclick="sortBots('status')">Durum <span class="sort-icon">↕</span></th>
+              <th data-sort="updated" onclick="sortBots('updated')">Son Güncelleme <span class="sort-icon">↕</span></th>
+              <th style="width:100px;text-align:right">İşlemler</th>
+            </tr>
+          </thead>
+          <tbody id="botsTableBody"></tbody>
+        </table>
+        <div class="pagination">
+          <div id="paginationInfo">1-10 / 10 bot</div>
+          <div class="pagination-pages">
+            <button class="page-btn" disabled><i data-lucide="chevron-left" style="width:14px;height:14px"></i></button>
+            <button class="page-btn active">1</button>
+            <button class="page-btn" disabled><i data-lucide="chevron-right" style="width:14px;height:14px"></i></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ BOT DETAIL PAGE ============ -->
+    <div id="page-bot-detail" class="page">
+      <div class="page-header">
+        <div style="display:flex;align-items:center;gap:12px">
+          <button class="icon-btn" onclick="navigate('bots')">
+            <i data-lucide="arrow-left"></i>
+          </button>
+          <div>
+            <div class="page-title" id="botDetailName">Bot Detay</div>
+            <div class="page-subtitle" id="botDetailSubtitle">Bot ayarları ve soru-cevaplar</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-secondary" onclick="navigate('bots')">İptal</button>
+          <button class="btn btn-primary" onclick="saveBot()">
+            <i data-lucide="save" style="width:16px;height:16px"></i> Kaydet
+          </button>
+        </div>
+      </div>
+
+      <div class="detail-grid">
+        <div>
+          <div class="settings-section">
+            <h3>Genel Bilgiler</h3>
+            <div class="section-desc">Botunuzun adı ve karşılama mesajı</div>
+            <div class="form-group">
+              <label class="form-label">Bot Adı</label>
+              <input class="form-input" type="text" id="editBotName">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Karşılama Mesajı</label>
+              <textarea class="form-textarea" id="editBotGreeting"></textarea>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Tema Rengi</label>
+                <input class="form-input" type="text" id="editBotColor" value="#f43f5e">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Konum</label>
+                <select class="form-select" id="editBotPosition">
+                  <option>Sağ Alt</option>
+                  <option>Sol Alt</option>
+                  <option>Sağ Orta</option>
+                  <option>Sol Orta</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <h3 style="display:flex;justify-content:space-between;align-items:center">
+              Soru-Cevaplar
+              <button class="btn btn-primary btn-sm" onclick="openAddQAModal()">
+                <i data-lucide="plus" style="width:14px;height:14px"></i> Yeni Ekle
+              </button>
+            </h3>
+            <div class="section-desc">Müşterilerin sorabileceği sorular ve verilecek cevaplar</div>
+            <div id="qaList"></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="settings-section">
+            <h3>Embed Kodu</h3>
+            <div class="section-desc">Web sitenize bu kodu yapıştırın</div>
+            <div class="embed-code" id="embedCode"></div>
+            <button class="btn btn-secondary btn-block" onclick="copyEmbed()">
+              <i data-lucide="copy" style="width:14px;height:14px"></i> Kodu Kopyala
+            </button>
+          </div>
+
+          <div class="settings-section">
+            <h3>İstatistikler</h3>
+            <div class="section-desc">Bu botun performansı</div>
+            <div style="display:flex;flex-direction:column;gap:14px">
+              <div style="display:flex;justify-content:space-between">
+                <span style="color:var(--text-muted);font-size:13px">Toplam Konuşma</span>
+                <span style="font-weight:600" id="botStatConversations">2.847</span>
+              </div>
+              <div style="display:flex;justify-content:space-between">
+                <span style="color:var(--text-muted);font-size:13px">Yanıt Oranı</span>
+                <span style="font-weight:600;color:var(--success)">%94,2</span>
+              </div>
+              <div style="display:flex;justify-content:space-between">
+                <span style="color:var(--text-muted);font-size:13px">Cevapsız Soru</span>
+                <span style="font-weight:600;color:var(--warning)">12</span>
+              </div>
+              <div style="display:flex;justify-content:space-between">
+                <span style="color:var(--text-muted);font-size:13px">Ortalama Süre</span>
+                <span style="font-weight:600">1dk 24sn</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ CONVERSATIONS / ANALYTICS / INTEGRATIONS (light placeholders) ============ -->
+    <div id="page-conversations" class="page">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Konuşmalar</div>
+          <div class="page-subtitle">Müşterilerinizin botlarınızla geçmişi</div>
+        </div>
+      </div>
+      <div class="panel">
+        <div style="text-align:center;padding:40px 20px;color:var(--text-muted)">
+          <i data-lucide="messages-square" style="width:40px;height:40px;color:var(--text-dim);margin-bottom:12px"></i>
+          <div style="font-weight:500;margin-bottom:4px">Konuşma geçmişi burada listelenecek</div>
+          <div style="font-size:12px">Bu sayfa demo içerisinde örnek olarak yer almaktadır.</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="page-analytics" class="page">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Analitik</div>
+          <div class="page-subtitle">Detaylı performans metrikleri</div>
+        </div>
+      </div>
+      <div class="panel">
+        <div style="text-align:center;padding:40px 20px;color:var(--text-muted)">
+          <i data-lucide="bar-chart-3" style="width:40px;height:40px;color:var(--text-dim);margin-bottom:12px"></i>
+          <div style="font-weight:500;margin-bottom:4px">Analitik panosu burada görünecek</div>
+          <div style="font-size:12px">Demo içerisinde placeholder olarak bırakılmıştır.</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="page-integrations" class="page">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Entegrasyonlar</div>
+          <div class="page-subtitle">Botlarınızı diğer servislere bağlayın</div>
+        </div>
+      </div>
+      <div class="panel">
+        <div style="text-align:center;padding:40px 20px;color:var(--text-muted)">
+          <i data-lucide="plug" style="width:40px;height:40px;color:var(--text-dim);margin-bottom:12px"></i>
+          <div style="font-weight:500;margin-bottom:4px">WhatsApp, Instagram ve Slack entegrasyonları yakında</div>
+          <div style="font-size:12px">Demo içerisinde placeholder olarak bırakılmıştır.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ SETTINGS PAGE ============ -->
+    <div id="page-settings" class="page">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Ayarlar</div>
+          <div class="page-subtitle">Hesap ve uygulama tercihleri</div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>Profil Bilgileri</h3>
+        <div class="section-desc">Hesap bilgilerini güncelle</div>
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:18px">
+          <div class="avatar avatar-lg" id="settingsAvatar">MY</div>
+          <div>
+            <button class="btn btn-secondary btn-sm">Fotoğraf Değiştir</button>
+            <div style="font-size:12px;color:var(--text-dim);margin-top:6px">JPG veya PNG, en fazla 2 MB</div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Ad Soyad</label>
+            <input class="form-input" type="text" id="settingsName" value="Mehmet Yılmaz">
+          </div>
+          <div class="form-group">
+            <label class="form-label">E-posta</label>
+            <input class="form-input" type="email" id="settingsEmail" value="mehmet@kafemehmet.com">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Telefon</label>
+            <input class="form-input" type="tel" value="+90 532 123 45 67">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Şirket</label>
+            <input class="form-input" type="text" value="Mehmet'in Kafesi">
+          </div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:8px">
+          <button class="btn btn-primary" onclick="saveProfile()">
+            <i data-lucide="save" style="width:14px;height:14px"></i> Profili Güncelle
+          </button>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>Bildirim Tercihleri</h3>
+        <div class="section-desc">Hangi durumlarda bildirim almak istediğini seç</div>
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <div class="toggle-label">E-posta bildirimleri</div>
+            <div class="toggle-desc">Yeni konuşmalar ve cevapsız sorular için e-posta al</div>
+          </div>
+          <div class="toggle-switch on" data-pref="email" onclick="toggleSwitch(this)"></div>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <div class="toggle-label">Cevapsız soru uyarıları</div>
+            <div class="toggle-desc">Botun cevaplayamadığı sorular için anlık uyarı</div>
+          </div>
+          <div class="toggle-switch on" data-pref="missed" onclick="toggleSwitch(this)"></div>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <div class="toggle-label">Haftalık rapor</div>
+            <div class="toggle-desc">Pazartesi sabahı haftalık özet raporu</div>
+          </div>
+          <div class="toggle-switch" data-pref="weekly" onclick="toggleSwitch(this)"></div>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <div class="toggle-label">Pazarlama e-postaları</div>
+            <div class="toggle-desc">Yeni özellikler ve kampanyalardan haberdar ol</div>
+          </div>
+          <div class="toggle-switch" data-pref="marketing" onclick="toggleSwitch(this)"></div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>Plan ve Abonelik</h3>
+        <div class="section-desc">Mevcut planın ve fatura bilgilerin</div>
+        <div class="plan-card">
+          <div class="plan-icon"><i data-lucide="zap"></i></div>
+          <div class="plan-info">
+            <div class="plan-name">Pro Plan · ₺499/ay</div>
+            <div class="plan-meta">Sonraki yenileme: 15 Mayıs 2026 · 8/15 bot kullanımda</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-secondary btn-sm">Faturalar</button>
+            <button class="btn btn-primary btn-sm">Planı Yükselt</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section danger-zone">
+        <h3>Tehlikeli Bölge</h3>
+        <div class="section-desc">Bu işlemler geri alınamaz, dikkatli ol</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border)">
+          <div>
+            <div style="font-weight:500;font-size:14px;margin-bottom:2px">Tüm verileri dışa aktar</div>
+            <div style="color:var(--text-muted);font-size:12px">Botlar ve konuşma geçmişi JSON dosyası olarak indirilir</div>
+          </div>
+          <button class="btn btn-secondary btn-sm">Dışa Aktar</button>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0">
+          <div>
+            <div style="font-weight:500;font-size:14px;margin-bottom:2px">Hesabı Sil</div>
+            <div style="color:var(--text-muted);font-size:12px">Tüm botların ve verilerin kalıcı olarak silinir</div>
+          </div>
+          <button class="btn btn-danger btn-sm" onclick="confirmDeleteAccount()">
+            <i data-lucide="trash-2" style="width:14px;height:14px"></i> Hesabı Sil
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ============ MODALS ============ -->
+<div id="createBotModal" class="modal-overlay" onclick="closeModalIfOverlay(event, 'createBotModal')">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Yeni Bot Oluştur</div>
+      <button class="icon-btn" onclick="closeModal('createBotModal')"><i data-lucide="x" style="width:18px;height:18px"></i></button>
+    </div>
+    <form id="createBotForm" onsubmit="createBot(event)">
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Bot Adı *</label>
+          <input class="form-input" type="text" id="newBotName" placeholder="örn. Mehmet'in Kafesi Asistanı" required>
+          <div class="form-error" id="newBotNameError">Bot adı en az 3 karakter olmalı.</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Açıklama</label>
+          <textarea class="form-textarea" id="newBotDesc" placeholder="Bu bot ne için kullanılacak?"></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">İşletme Türü</label>
+            <select class="form-select" id="newBotType">
+              <option>Kafe / Restoran</option>
+              <option>Kuaför / Berber</option>
+              <option>Güzellik Salonu</option>
+              <option>Dijital Ajans</option>
+              <option>E-Ticaret</option>
+              <option>Diğer</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Karşılama</label>
+            <input class="form-input" type="text" id="newBotGreeting" value="Merhaba! Size nasıl yardımcı olabilirim?">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('createBotModal')">İptal</button>
+        <button type="submit" class="btn btn-primary">
+          <i data-lucide="plus" style="width:14px;height:14px"></i> Bot Oluştur
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="addQAModal" class="modal-overlay" onclick="closeModalIfOverlay(event, 'addQAModal')">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="qaModalTitle">Yeni Soru-Cevap Ekle</div>
+      <button class="icon-btn" onclick="closeModal('addQAModal')"><i data-lucide="x" style="width:18px;height:18px"></i></button>
+    </div>
+    <form id="qaForm" onsubmit="saveQA(event)">
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Soru *</label>
+          <input class="form-input" type="text" id="qaQuestion" placeholder="örn. Çalışma saatleriniz nedir?" required>
+          <div class="form-error" id="qaQuestionError">Soru boş olamaz.</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Cevap *</label>
+          <textarea class="form-textarea" id="qaAnswer" placeholder="Müşteriye verilecek cevap" required style="min-height:120px"></textarea>
+          <div class="form-error" id="qaAnswerError">Cevap boş olamaz.</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('addQAModal')">İptal</button>
+        <button type="submit" class="btn btn-primary">Kaydet</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="confirmModal" class="modal-overlay" onclick="closeModalIfOverlay(event, 'confirmModal')">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <div class="modal-title" id="confirmTitle">Emin misin?</div>
+      <button class="icon-btn" onclick="closeModal('confirmModal')"><i data-lucide="x" style="width:18px;height:18px"></i></button>
+    </div>
+    <div class="modal-body">
+      <p id="confirmMessage" style="color:var(--text-muted)">Bu işlem geri alınamaz.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('confirmModal')">İptal</button>
+      <button class="btn btn-danger" id="confirmAction">Evet, Sil</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+  /* =============================
+     STATE
+  ============================= */
+  const STORAGE_KEY = 'chatbotkur_state_v1';
+
+  const initialBots = [
+    { id: 1, name: "Mehmet'in Kafesi Asistanı", type: "Kafe / Restoran", conversations: 2847, questions: 24, status: "active", updated: "2026-05-05" },
+    { id: 2, name: "Güzellik Salonu Botu", type: "Güzellik Salonu", conversations: 1965, questions: 18, status: "active", updated: "2026-05-04" },
+    { id: 3, name: "Pizza Roma Asistanı", type: "Kafe / Restoran", conversations: 3421, questions: 32, status: "active", updated: "2026-05-06" },
+    { id: 4, name: "Kuaför Ayşe Botu", type: "Kuaför / Berber", conversations: 1248, questions: 15, status: "active", updated: "2026-05-02" },
+    { id: 5, name: "Berber Ali Botu", type: "Kuaför / Berber", conversations: 892, questions: 12, status: "paused", updated: "2026-04-28" },
+    { id: 6, name: "Sefa Ajans Asistanı", type: "Dijital Ajans", conversations: 1547, questions: 28, status: "active", updated: "2026-05-03" },
+    { id: 7, name: "Petshop Patiland Botu", type: "E-Ticaret", conversations: 645, questions: 19, status: "active", updated: "2026-04-30" },
+    { id: 8, name: "Diş Polikliniği Asistanı", type: "Diğer", conversations: 312, questions: 14, status: "draft", updated: "2026-04-25" },
+    { id: 9, name: "Spor Salonu Botu", type: "Diğer", conversations: 0, questions: 8, status: "draft", updated: "2026-04-22" },
+    { id: 10, name: "Çiçekçi Lale Botu", type: "E-Ticaret", conversations: 1379, questions: 22, status: "active", updated: "2026-05-01" }
+  ];
+
+  const DEFAULT_QAS = [
+    { q: "Fiyatlarınız nedir?", a: "Hizmetlerimizin fiyatları için lütfen bizimle iletişime geçin veya web sitemizdeki fiyat listesini inceleyin." },
+    { q: "Çalışma saatleriniz nedir?", a: "Pazartesi-Cumartesi 09:00-18:00 saatleri arasında hizmet veriyoruz. Pazar günleri kapalıyız." },
+    { q: "Adresiniz nedir?", a: "Adresimiz web sitemizde yer almaktadır. Detaylı yol tarifi için harita bağlantımızı kullanabilirsiniz." },
+    { q: "Hangi hizmetleri sunuyorsunuz?", a: "Geniş bir hizmet yelpazemiz mevcut. Detaylı bilgi için web sitemizi ziyaret edin veya bize ulaşın." },
+    { q: "Randevu nasıl alabilirim?", a: "Randevu için telefon numaramızdan veya web sitemizdeki randevu formundan bize ulaşabilirsiniz." },
+    { q: "İade ve değişim koşullarınız nelerdir?", a: "Ürünleri 14 gün içinde, kullanılmamış ve orijinal ambalajında olmak şartıyla iade edebilir veya değiştirebilirsiniz." },
+    { q: "Kargo ne kadar sürede geliyor?", a: "Siparişleriniz 1-3 iş günü içinde kargoya verilir, kargo süresi 1-3 iş günü arasında değişmektedir." },
+    { q: "Hangi ödeme yöntemlerini kabul ediyorsunuz?", a: "Kredi kartı, banka kartı, havale/EFT ve kapıda ödeme yöntemlerini kabul ediyoruz." },
+    { q: "Ürünlerinizde garanti var mı?", a: "Tüm ürünlerimiz üretici garantisi kapsamındadır. Garanti belgenizi saklamayı unutmayın." },
+    { q: "Toptan satış yapıyor musunuz?", a: "Evet, toptan satış için minimum sipariş miktarı ve özel fiyatlandırmamız mevcut. Detaylar için bize ulaşın." },
+    { q: "Müşteri desteğine nasıl ulaşabilirim?", a: "Telefon, e-posta veya canlı destek üzerinden bize ulaşabilirsiniz. Mesai saatleri içinde size dönüş yaparız." },
+    { q: "Ücretsiz deneme süresi var mı?", a: "Evet, hizmetimizi 14 gün boyunca ücretsiz deneyebilirsiniz. Kart bilgisi gerekmez, istediğiniz zaman iptal edebilirsiniz." }
+  ];
+
+  const initialQAs = {
+    1: [
+      { q: "Çalışma saatleriniz nedir?", a: "Pazartesi-Cumartesi 08:00-23:00, Pazar 10:00-22:00 saatleri arasında hizmet veriyoruz." },
+      { q: "Rezervasyon yapabilir miyim?", a: "Evet, +90 532 123 45 67 numarasından veya web sitemizden rezervasyon yapabilirsiniz." },
+      { q: "Wi-Fi şifresi nedir?", a: "Wi-Fi şifremiz: kafemehmet2026. İyi vakit geçirmenizi dileriz!" },
+      { q: "Kahve menüsünüz var mı?", a: "Türk kahvesi, espresso, latte, cappuccino ve filtre kahve seçeneklerimiz mevcut. Tam menü için web sitemizi ziyaret edin." },
+      { q: "Park alanınız var mı?", a: "Kafemizin önünde ücretsiz park alanı bulunmaktadır." }
+    ],
+    2: [
+      { q: "Randevu almam gerekir mi?", a: "Evet, yoğunluk yaşanmaması için randevu almanızı öneririz. Online rezervasyon sistemimizden veya telefonla randevu alabilirsiniz." },
+      { q: "Hangi hizmetleri sunuyorsunuz?", a: "Saç kesimi, boya, manikür, pedikür, cilt bakımı ve kalıcı makyaj hizmetlerimiz mevcut." }
+    ]
+  };
+
+  let state = {
+    user: { name: "Mehmet Yılmaz", email: "mehmet@kafemehmet.com", initials: "MY" },
+    bots: initialBots,
+    qas: initialQAs,
+    currentBotId: null,
+    currentFilter: 'all',
+    botSearch: '',
+    sortKey: 'updated',
+    sortDir: 'desc',
+    editingQAIndex: null
+  };
+
+  function saveState() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ bots: state.bots, qas: state.qas, user: state.user })); } catch (e) {}
+  }
+  function loadState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed.bots) state.bots = parsed.bots;
+        if (parsed.qas) state.qas = parsed.qas;
+        if (parsed.user) state.user = parsed.user;
+      }
+    } catch (e) {}
+  }
+
+  /* =============================
+     AUTH
+  ============================= */
+  function toggleAuthForm(which) {
+    document.getElementById('loginForm').style.display = which === 'login' ? 'block' : 'none';
+    document.getElementById('registerForm').style.display = which === 'register' ? 'block' : 'none';
+  }
+
+  function handleLogin(e) {
+    e.preventDefault();
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    let valid = true;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+      document.getElementById('loginEmailError').classList.add('visible');
+      valid = false;
+    } else document.getElementById('loginEmailError').classList.remove('visible');
+    if (password.length < 6) {
+      document.getElementById('loginPasswordError').classList.add('visible');
+      valid = false;
+    } else document.getElementById('loginPasswordError').classList.remove('visible');
+    if (!valid) return;
+    fakeAuth('Hoş geldin! Giriş başarılı.');
+  }
+
+  function handleRegister(e) {
+    e.preventDefault();
+    const name = document.getElementById('regName').value.trim();
+    const email = document.getElementById('regEmail').value.trim();
+    const password = document.getElementById('regPassword').value;
+    let valid = true;
+    if (name.length < 2) {
+      document.getElementById('regNameError').classList.add('visible');
+      valid = false;
+    } else document.getElementById('regNameError').classList.remove('visible');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+      document.getElementById('regEmailError').classList.add('visible');
+      valid = false;
+    } else document.getElementById('regEmailError').classList.remove('visible');
+    if (password.length < 6) {
+      document.getElementById('regPasswordError').classList.add('visible');
+      valid = false;
+    } else document.getElementById('regPasswordError').classList.remove('visible');
+    if (!valid) return;
+
+    state.user.name = name;
+    state.user.email = email;
+    state.user.initials = name.split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
+    saveState();
+    fakeAuth('Hesabın oluşturuldu, hoş geldin!');
+  }
+
+  function fakeAuth(msg) {
+    localStorage.setItem('chatbotkur_loggedin', '1');
+    document.getElementById('authScreen').style.display = 'none';
+    document.getElementById('appShell').classList.add('active');
+    refreshUserUI();
+    toast(msg, 'success');
+    lucide.createIcons();
+  }
+
+  function logout() {
+    localStorage.removeItem('chatbotkur_loggedin');
+    document.getElementById('authScreen').style.display = 'flex';
+    document.getElementById('appShell').classList.remove('active');
+    toast('Çıkış yapıldı', 'info');
+  }
+
+  function refreshUserUI() {
+    document.getElementById('sidebarUserName').textContent = state.user.name;
+    document.getElementById('sidebarUserEmail').textContent = state.user.email;
+    document.getElementById('sidebarAvatar').textContent = state.user.initials;
+    document.getElementById('topbarAvatar').textContent = state.user.initials;
+    document.getElementById('topbarUserName').textContent = state.user.name;
+    document.getElementById('settingsAvatar').textContent = state.user.initials;
+    document.getElementById('settingsName').value = state.user.name;
+    document.getElementById('settingsEmail').value = state.user.email;
+  }
+
+  /* =============================
+     NAV
+  ============================= */
+  function navigate(page) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+
+    if (page === 'bot-detail') {
+      document.getElementById('page-bot-detail').classList.add('active');
+      document.querySelector('[data-page="bots"]').classList.add('active');
+      document.getElementById('topbarTitle').textContent = 'Bot Detay';
+    } else {
+      document.getElementById('page-' + page).classList.add('active');
+      const navItem = document.querySelector(`[data-page="${page}"]`);
+      if (navItem) navItem.classList.add('active');
+      const titles = {
+        dashboard: 'Genel Bakış',
+        bots: 'Botlarım',
+        conversations: 'Konuşmalar',
+        analytics: 'Analitik',
+        integrations: 'Entegrasyonlar',
+        settings: 'Ayarlar'
+      };
+      document.getElementById('topbarTitle').textContent = titles[page] || '';
+      try { localStorage.setItem('chatbotkur_currentPage', page); } catch (e) {}
+    }
+    if (window.innerWidth <= 1024) closeSidebar();
+    lucide.createIcons();
+  }
+
+  function openSidebar() {
+    document.getElementById('sidebar').classList.add('open');
+    document.getElementById('sidebarOverlay').classList.add('active');
+  }
+  function closeSidebar() {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebarOverlay').classList.remove('active');
+  }
+
+  function toggleTopbarDropdown(e, id) {
+    if (e) e.stopPropagation();
+    const target = document.getElementById(id);
+    document.querySelectorAll('.topbar-dropdown').forEach(d => {
+      if (d !== target) d.classList.remove('active');
+    });
+    target.classList.toggle('active');
+    lucide.createIcons();
+  }
+  function closeTopbarDropdowns() {
+    document.querySelectorAll('.topbar-dropdown').forEach(d => d.classList.remove('active'));
+  }
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.dropdown-anchor')) closeTopbarDropdowns();
+  });
+
+  /* =============================
+     BOTS TABLE
+  ============================= */
+  function renderBots() {
+    const tbody = document.getElementById('botsTableBody');
+    let list = [...state.bots];
+
+    if (state.currentFilter !== 'all') {
+      list = list.filter(b => b.status === state.currentFilter);
+    }
+    if (state.botSearch) {
+      const q = state.botSearch.toLowerCase();
+      list = list.filter(b => b.name.toLowerCase().includes(q) || b.type.toLowerCase().includes(q));
+    }
+
+    const trCollator = new Intl.Collator('tr', { sensitivity: 'base' });
+    list.sort((a, b) => {
+      const k = state.sortKey;
+      const av = a[k], bv = b[k];
+      const dir = state.sortDir === 'asc' ? 1 : -1;
+      if (typeof av === 'string' && typeof bv === 'string') {
+        return trCollator.compare(av, bv) * dir;
+      }
+      if (av < bv) return -1 * dir;
+      if (av > bv) return 1 * dir;
+      return 0;
+    });
+
+    if (list.length === 0) {
+      tbody.innerHTML = `
+        <tr><td colspan="6">
+          <div class="table-empty">
+            <div class="table-empty-icon"><i data-lucide="search-x"></i></div>
+            <div style="font-weight:500;margin-bottom:4px">Bot bulunamadı</div>
+            <div style="font-size:12px">Filtreleri temizlemeyi veya yeni bir bot oluşturmayı deneyin.</div>
+          </div>
+        </td></tr>`;
+      lucide.createIcons();
+      document.getElementById('paginationInfo').textContent = '0 bot';
+      return;
+    }
+
+    tbody.innerHTML = list.map(bot => `
+      <tr style="cursor:pointer" onclick="handleBotRowClick(event, ${bot.id})">
+        <td>
+          <div class="table-bot-name">
+            <div class="bot-avatar"><i data-lucide="bot" style="width:16px;height:16px"></i></div>
+            <div>
+              <div style="font-weight:500">${escapeHtml(bot.name)}</div>
+              <div style="font-size:11px;color:var(--text-dim)">${escapeHtml(bot.type)}</div>
+            </div>
+          </div>
+        </td>
+        <td>${bot.conversations.toLocaleString('tr-TR')}</td>
+        <td>${bot.questions}</td>
+        <td>${statusBadge(bot.status)}</td>
+        <td style="color:var(--text-muted)">${formatDate(bot.updated)}</td>
+        <td>
+          <div class="row-actions" style="justify-content:flex-end" onclick="event.stopPropagation()">
+            <button class="row-action" title="Düzenle" onclick="openBotDetail(${bot.id})"><i data-lucide="edit-3" style="width:14px;height:14px"></i></button>
+            <button class="row-action" title="Kopyala" onclick="duplicateBot(${bot.id})"><i data-lucide="copy" style="width:14px;height:14px"></i></button>
+            <button class="row-action danger" title="Sil" onclick="confirmDeleteBot(${bot.id})"><i data-lucide="trash-2" style="width:14px;height:14px"></i></button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+    document.getElementById('paginationInfo').textContent = `1-${list.length} / ${list.length} bot`;
+    lucide.createIcons();
+  }
+
+  function handleBotRowClick(e, id) {
+    if (e.target.closest('.row-action')) return;
+    openBotDetail(id);
+  }
+
+  function statusBadge(s) {
+    const map = {
+      active:  '<span class="status-badge status-success">● Aktif</span>',
+      paused:  '<span class="status-badge status-warning">● Duraklatıldı</span>',
+      draft:   '<span class="status-badge status-neutral">● Taslak</span>'
+    };
+    return map[s] || '';
+  }
+
+  function formatDate(iso) {
+    const d = new Date(iso);
+    const months = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
+    return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+  }
+
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function setFilter(f) {
+    state.currentFilter = f;
+    document.querySelectorAll('.filter-chip').forEach(c => c.classList.toggle('active', c.dataset.filter === f));
+    renderBots();
+  }
+
+  function filterBots() {
+    state.botSearch = document.getElementById('botSearch').value;
+    renderBots();
+  }
+
+  function sortBots(key) {
+    if (state.sortKey === key) {
+      state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      state.sortKey = key;
+      state.sortDir = 'asc';
+    }
+    renderBots();
+  }
+
+  /* =============================
+     BOT CRUD
+  ============================= */
+  function openCreateBotModal() {
+    document.getElementById('createBotForm').reset();
+    document.getElementById('newBotGreeting').value = 'Merhaba! Size nasıl yardımcı olabilirim?';
+    document.getElementById('newBotNameError').classList.remove('visible');
+    openModal('createBotModal');
+  }
+
+  function createBot(e) {
+    e.preventDefault();
+    const name = document.getElementById('newBotName').value.trim();
+    if (name.length < 3) {
+      document.getElementById('newBotNameError').classList.add('visible');
+      return;
+    }
+    const defaults = DEFAULT_QAS.map(qa => ({ ...qa }));
+    const newBot = {
+      id: Math.max(0, ...state.bots.map(b => b.id)) + 1,
+      name,
+      type: document.getElementById('newBotType').value,
+      conversations: 0,
+      questions: defaults.length,
+      status: 'draft',
+      updated: new Date().toISOString().slice(0, 10)
+    };
+    state.bots.unshift(newBot);
+    state.qas[newBot.id] = defaults;
+    saveState();
+    closeModal('createBotModal');
+    renderBots();
+    toast(`"${name}" botu oluşturuldu`, 'success');
+  }
+
+  function duplicateBot(id) {
+    const orig = state.bots.find(b => b.id === id);
+    if (!orig) return;
+    const copy = { ...orig, id: Math.max(...state.bots.map(b => b.id)) + 1, name: orig.name + ' (Kopya)', status: 'draft', conversations: 0, updated: new Date().toISOString().slice(0,10) };
+    state.bots.unshift(copy);
+    state.qas[copy.id] = [...(state.qas[id] || [])];
+    saveState();
+    renderBots();
+    toast('Bot kopyalandı', 'success');
+  }
+
+  function confirmDeleteBot(id) {
+    const bot = state.bots.find(b => b.id === id);
+    if (!bot) return;
+    showConfirm(
+      'Botu sil',
+      `"${bot.name}" botunu silmek istediğinden emin misin? Bu işlem geri alınamaz.`,
+      () => {
+        state.bots = state.bots.filter(b => b.id !== id);
+        delete state.qas[id];
+        saveState();
+        renderBots();
+        toast('Bot silindi', 'success');
+      }
+    );
+  }
+
+  /* =============================
+     BOT DETAIL
+  ============================= */
+  function openBotDetail(id) {
+    const bot = state.bots.find(b => b.id === id);
+    if (!bot) return;
+    state.currentBotId = id;
+    document.getElementById('botDetailName').textContent = bot.name;
+    document.getElementById('botDetailSubtitle').textContent = bot.type + ' · ' + statusLabel(bot.status);
+    document.getElementById('editBotName').value = bot.name;
+    document.getElementById('editBotGreeting').value = 'Merhaba! ' + bot.name + ' olarak size yardımcı olmak için buradayım.';
+    document.getElementById('botStatConversations').textContent = bot.conversations.toLocaleString('tr-TR');
+    document.getElementById('embedCode').textContent =
+`<script src="https://cdn.chatbotkur.com/widget.js"
+        data-bot-id="${bot.id}"
+        data-color="#f43f5e"
+        defer><\/script>`;
+    renderQAs();
+    navigate('bot-detail');
+  }
+
+  function statusLabel(s) {
+    return { active: 'Aktif', paused: 'Duraklatıldı', draft: 'Taslak' }[s] || s;
+  }
+
+  function renderQAs() {
+    const list = state.qas[state.currentBotId] || [];
+    const container = document.getElementById('qaList');
+    if (list.length === 0) {
+      container.innerHTML = `
+        <div class="qa-empty">
+          <i data-lucide="message-circle-question" style="width:32px;height:32px;color:var(--text-dim);margin-bottom:8px"></i>
+          <div style="margin-bottom:4px">Henüz soru-cevap eklenmemiş</div>
+          <div style="font-size:12px;color:var(--text-dim)">Yukarıdan "Yeni Ekle" ile başla</div>
+        </div>`;
+      lucide.createIcons();
+      return;
+    }
+    container.innerHTML = list.map((qa, i) => `
+      <div class="qa-item">
+        <div class="qa-question">
+          <div class="qa-question-text">${escapeHtml(qa.q)}</div>
+          <div class="row-actions">
+            <button class="row-action" onclick="editQA(${i})" title="Düzenle"><i data-lucide="edit-3" style="width:14px;height:14px"></i></button>
+            <button class="row-action danger" onclick="deleteQA(${i})" title="Sil"><i data-lucide="trash-2" style="width:14px;height:14px"></i></button>
+          </div>
+        </div>
+        <div class="qa-answer">${escapeHtml(qa.a)}</div>
+      </div>
+    `).join('');
+    lucide.createIcons();
+  }
+
+  function openAddQAModal() {
+    state.editingQAIndex = null;
+    document.getElementById('qaModalTitle').textContent = 'Yeni Soru-Cevap Ekle';
+    document.getElementById('qaQuestion').value = '';
+    document.getElementById('qaAnswer').value = '';
+    document.getElementById('qaQuestionError').classList.remove('visible');
+    document.getElementById('qaAnswerError').classList.remove('visible');
+    openModal('addQAModal');
+  }
+
+  function editQA(i) {
+    const qa = state.qas[state.currentBotId][i];
+    state.editingQAIndex = i;
+    document.getElementById('qaModalTitle').textContent = 'Soru-Cevap Düzenle';
+    document.getElementById('qaQuestion').value = qa.q;
+    document.getElementById('qaAnswer').value = qa.a;
+    openModal('addQAModal');
+  }
+
+  function saveQA(e) {
+    e.preventDefault();
+    const q = document.getElementById('qaQuestion').value.trim();
+    const a = document.getElementById('qaAnswer').value.trim();
+    let valid = true;
+    if (!q) { document.getElementById('qaQuestionError').classList.add('visible'); valid = false; }
+    else document.getElementById('qaQuestionError').classList.remove('visible');
+    if (!a) { document.getElementById('qaAnswerError').classList.add('visible'); valid = false; }
+    else document.getElementById('qaAnswerError').classList.remove('visible');
+    if (!valid) return;
+
+    if (!state.qas[state.currentBotId]) state.qas[state.currentBotId] = [];
+    if (state.editingQAIndex !== null) {
+      state.qas[state.currentBotId][state.editingQAIndex] = { q, a };
+      toast('Soru-cevap güncellendi', 'success');
+    } else {
+      state.qas[state.currentBotId].push({ q, a });
+      toast('Soru-cevap eklendi', 'success');
+    }
+
+    const bot = state.bots.find(b => b.id === state.currentBotId);
+    if (bot) {
+      bot.questions = state.qas[state.currentBotId].length;
+      bot.updated = new Date().toISOString().slice(0, 10);
+    }
+
+    saveState();
+    closeModal('addQAModal');
+    renderQAs();
+  }
+
+  function deleteQA(i) {
+    showConfirm(
+      'Soru-cevabı sil',
+      'Bu soru-cevabı silmek istediğine emin misin?',
+      () => {
+        state.qas[state.currentBotId].splice(i, 1);
+        const bot = state.bots.find(b => b.id === state.currentBotId);
+        if (bot) bot.questions = state.qas[state.currentBotId].length;
+        saveState();
+        renderQAs();
+        toast('Soru-cevap silindi', 'success');
+      }
+    );
+  }
+
+  function saveBot() {
+    const bot = state.bots.find(b => b.id === state.currentBotId);
+    if (!bot) return;
+    const newName = document.getElementById('editBotName').value.trim();
+    if (newName.length < 3) {
+      toast('Bot adı en az 3 karakter olmalı', 'error');
+      return;
+    }
+    bot.name = newName;
+    bot.updated = new Date().toISOString().slice(0, 10);
+    saveState();
+    document.getElementById('botDetailName').textContent = bot.name;
+    renderBots();
+    toast('Değişiklikler kaydedildi', 'success');
+  }
+
+  function copyEmbed() {
+    const code = document.getElementById('embedCode').textContent;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(code).then(() => toast('Embed kodu panoya kopyalandı', 'success'));
+    } else {
+      toast('Kopyalama desteklenmiyor', 'error');
+    }
+  }
+
+  /* =============================
+     SETTINGS
+  ============================= */
+  function toggleSwitch(el) {
+    el.classList.toggle('on');
+    saveNotifPrefs();
+    toast('Tercih güncellendi', 'info');
+  }
+
+  function saveNotifPrefs() {
+    const prefs = {};
+    document.querySelectorAll('.toggle-switch[data-pref]').forEach(s => {
+      prefs[s.dataset.pref] = s.classList.contains('on');
+    });
+    try { localStorage.setItem('chatbotkur_notifPrefs', JSON.stringify(prefs)); } catch (e) {}
+  }
+
+  function loadNotifPrefs() {
+    try {
+      const raw = localStorage.getItem('chatbotkur_notifPrefs');
+      if (!raw) return;
+      const prefs = JSON.parse(raw);
+      document.querySelectorAll('.toggle-switch[data-pref]').forEach(s => {
+        if (Object.prototype.hasOwnProperty.call(prefs, s.dataset.pref)) {
+          s.classList.toggle('on', !!prefs[s.dataset.pref]);
+        }
+      });
+    } catch (e) {}
+  }
+
+  function saveProfile() {
+    const name = document.getElementById('settingsName').value.trim();
+    const email = document.getElementById('settingsEmail').value.trim();
+    if (name.length < 2) { toast('İsim en az 2 karakter olmalı', 'error'); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) { toast('Geçersiz e-posta', 'error'); return; }
+    state.user.name = name;
+    state.user.email = email;
+    state.user.initials = name.split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
+    saveState();
+    refreshUserUI();
+    toast('Profil güncellendi', 'success');
+  }
+
+  function confirmDeleteAccount() {
+    showConfirm(
+      'Hesabı kalıcı olarak sil',
+      'Tüm botların, soru-cevapların ve konuşma geçmişin silinecek. Bu işlem geri alınamaz.',
+      () => {
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem('chatbotkur_loggedin');
+        toast('Hesap silindi', 'info');
+        setTimeout(() => location.reload(), 800);
+      }
+    );
+  }
+
+  /* =============================
+     MODALS
+  ============================= */
+  function openModal(id) {
+    document.getElementById(id).classList.add('active');
+    lucide.createIcons();
+  }
+  function closeModal(id) {
+    document.getElementById(id).classList.remove('active');
+  }
+  function closeModalIfOverlay(e, id) {
+    if (e.target.id === id) closeModal(id);
+  }
+  function showConfirm(title, msg, onYes) {
+    document.getElementById('confirmTitle').textContent = title;
+    document.getElementById('confirmMessage').textContent = msg;
+    const btn = document.getElementById('confirmAction');
+    btn.onclick = () => { closeModal('confirmModal'); onYes(); };
+    openModal('confirmModal');
+  }
+
+  /* =============================
+     TOAST
+  ============================= */
+  function toast(message, type = 'info') {
+    const container = document.getElementById('toastContainer');
+    const el = document.createElement('div');
+    el.className = `toast ${type}`;
+    const iconMap = { success: 'check', error: 'x', info: 'info' };
+    el.innerHTML = `
+      <div class="toast-icon"><i data-lucide="${iconMap[type] || 'info'}" style="width:14px;height:14px"></i></div>
+      <div class="toast-message">${escapeHtml(message)}</div>
+    `;
+    container.appendChild(el);
+    lucide.createIcons();
+    setTimeout(() => {
+      el.classList.add('removing');
+      setTimeout(() => el.remove(), 250);
+    }, 2800);
+  }
+
+  /* =============================
+     KEYBOARD
+  ============================= */
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.modal-overlay.active').forEach(m => m.classList.remove('active'));
+    }
+  });
+
+  /* =============================
+     INIT
+  ============================= */
+  document.addEventListener('DOMContentLoaded', () => {
+    loadState();
+    lucide.createIcons();
+    if (localStorage.getItem('chatbotkur_loggedin') === '1') {
+      document.getElementById('authScreen').style.display = 'none';
+      document.getElementById('appShell').classList.add('active');
+      refreshUserUI();
+    }
+    renderBots();
+    loadNotifPrefs();
+    let savedPage = null;
+    try { savedPage = localStorage.getItem('chatbotkur_currentPage'); } catch (e) {}
+    const validPages = ['dashboard', 'bots', 'conversations', 'analytics', 'integrations', 'settings'];
+    if (savedPage && validPages.includes(savedPage)) {
+      navigate(savedPage);
+    }
+    lucide.createIcons();
+  });
+</script>
+</body>
+</html>

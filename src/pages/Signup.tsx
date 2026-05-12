@@ -19,6 +19,7 @@ export function Signup() {
   const [passwordError, setPasswordError] = useState('')
   const [passwordConfirmError, setPasswordConfirmError] = useState('')
   const [formError, setFormError] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
   const handleSubmit = async (e: SubmitEvent<HTMLFormElement>) => {
@@ -65,13 +66,14 @@ export function Signup() {
     try {
       const { needsEmailConfirmation } = await signUp(email.trim(), password, trimmedName)
       if (needsEmailConfirmation) {
-        setFormError(
+        setSuccessMessage(
           'Hesabın oluşturuldu. E-postandaki doğrulama linkine tıkla, sonra giriş yap.',
         )
         return
       }
       navigate('/', { replace: true })
     } catch (err) {
+      setSuccessMessage('')
       if (err instanceof AuthError && err.code === 'user_already_exists') {
         setFormError('Bu e-posta zaten kayıtlı.')
       } else if (
@@ -179,11 +181,15 @@ export function Signup() {
             )}
           </div>
 
-          {formError && (
+          {successMessage ? (
+            <div className="mb-4 text-sm text-[var(--success)] bg-[rgba(16,185,129,0.08)] border border-[rgba(16,185,129,0.2)] rounded-[var(--radius-input)] px-3 py-2">
+              {successMessage}
+            </div>
+          ) : formError ? (
             <div className="mb-4 text-sm text-[var(--danger)] bg-[rgba(239,68,68,0.08)] border border-[rgba(239,68,68,0.2)] rounded-[var(--radius-input)] px-3 py-2">
               {formError}
             </div>
-          )}
+          ) : null}
 
           <button
             type="submit"

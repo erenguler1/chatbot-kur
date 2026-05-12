@@ -7,7 +7,11 @@ export interface AuthContextValue {
   session: Session | null
   loading: boolean
   signIn: (email: string, password: string) => Promise<void>
-  signUp: (email: string, password: string, fullName: string) => Promise<void>
+  signUp: (
+    email: string,
+    password: string,
+    fullName: string,
+  ) => Promise<{ needsEmailConfirmation: boolean }>
   signOut: () => Promise<void>
   resetPassword: (email: string) => Promise<void>
 }

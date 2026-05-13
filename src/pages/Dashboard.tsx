@@ -14,6 +14,8 @@ import {
 import { Header } from '../components/Header'
 import { BotAvatar } from '../components/BotAvatar'
 import { StatusBadge } from '../components/StatusBadge'
+import { BotActionMenu } from '../components/BotActionMenu'
+import { EmptyState } from '../components/EmptyState'
 import { formatDate } from '../lib/date'
 import { getBotStatus, type Bot, type BotStatus } from '../types/bot'
 
@@ -56,6 +58,9 @@ const TH_CLASS =
 
 const SORT_BTN_CLASS =
   'inline-flex items-center gap-1.5 font-medium uppercase tracking-wider text-[12px] text-[var(--text-muted)] hover:text-[var(--text)] transition-colors'
+
+const METRIC_CHIP_CLASS =
+  'bg-[var(--bg-app)] rounded px-2 py-1 text-xs text-[var(--text-muted)]'
 
 export function Dashboard() {
   const [searchQuery, setSearchQuery] = useState('')
@@ -115,6 +120,8 @@ export function Dashboard() {
     return result
   }, [searchQuery, statusFilter, sortKey, sortOrder])
 
+  const isEmpty = filteredBots.length === 0
+
   return (
     <div className="min-h-screen bg-[var(--bg-app)] text-[var(--text)]">
       <Header />
@@ -151,7 +158,7 @@ export function Dashboard() {
               />
             </div>
 
-            <div className="flex items-center gap-1.5 flex-wrap">
+            <div className="flex items-center gap-1.5 overflow-x-auto">
               {FILTERS.map((filter) => {
                 const isActive = statusFilter === filter.value
                 return (
@@ -159,7 +166,7 @@ export function Dashboard() {
                     key={filter.value}
                     type="button"
                     onClick={() => setStatusFilter(filter.value)}
-                    className={`inline-flex items-center h-8 rounded-full px-3 text-xs font-medium transition-colors ${
+                    className={`inline-flex items-center h-8 rounded-full px-3 text-xs font-medium transition-colors shrink-0 ${
                       isActive
                         ? 'bg-[var(--accent-soft)] text-[var(--accent)]'
                         : 'bg-[var(--bg-app)] text-[var(--text-muted)] hover:text-[var(--text)]'
@@ -173,135 +180,182 @@ export function Dashboard() {
 
             <button
               type="button"
-              className="ml-auto inline-flex items-center gap-2 border border-[var(--border)] bg-transparent hover:bg-[var(--bg-app)] text-[var(--text)] text-sm rounded-[var(--radius-btn)] px-3 py-1.5 transition-colors"
+              className="md:ml-auto inline-flex items-center gap-2 border border-[var(--border)] bg-transparent hover:bg-[var(--bg-app)] text-[var(--text)] text-sm rounded-[var(--radius-btn)] px-3 py-1.5 transition-colors"
             >
               <Download size={14} />
               Dışa Aktar
             </button>
           </div>
 
-          <table className="w-full border-collapse text-[13px]">
-            <thead>
-              <tr>
-                <th className={`${TH_CLASS} text-left`}>Bot Adı</th>
-                <th className={`${TH_CLASS} text-left`}>
-                  <button
-                    type="button"
-                    onClick={() => handleSort('conversation_count')}
-                    className={SORT_BTN_CLASS}
-                  >
-                    Konuşmalar
-                    {renderSortIcon('conversation_count')}
-                  </button>
-                </th>
-                <th className={`${TH_CLASS} text-left`}>
-                  <button
-                    type="button"
-                    onClick={() => handleSort('qa_count')}
-                    className={SORT_BTN_CLASS}
-                  >
-                    Sorular
-                    {renderSortIcon('qa_count')}
-                  </button>
-                </th>
-                <th className={`${TH_CLASS} text-left`}>Durum</th>
-                <th className={`${TH_CLASS} text-left`}>
-                  <button
-                    type="button"
-                    onClick={() => handleSort('updated_at')}
-                    className={SORT_BTN_CLASS}
-                  >
-                    Son Güncelleme
-                    {renderSortIcon('updated_at')}
-                  </button>
-                </th>
-                <th className={`${TH_CLASS} text-right w-[120px]`}>İşlemler</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredBots.length === 0 ? (
+          <div className="hidden md:block">
+            <table className="w-full border-collapse text-[13px]">
+              <thead>
                 <tr>
-                  <td colSpan={6} className="p-[60px]">
-                    <div className="flex flex-col items-center gap-2 text-center">
-                      <div className="w-12 h-12 rounded-full bg-[var(--bg-app)] flex items-center justify-center">
-                        <SearchX
-                          size={20}
-                          className="text-[var(--text-muted)]"
-                        />
-                      </div>
-                      <h3 className="text-[15px] font-medium text-[var(--text)]">
-                        Bot bulunamadı
-                      </h3>
-                      <p className="text-[12px] text-[var(--text-muted)]">
-                        Arama veya filtreni değiştirmeyi dene.
-                      </p>
-                    </div>
-                  </td>
+                  <th className={`${TH_CLASS} text-left`}>Bot Adı</th>
+                  <th className={`${TH_CLASS} text-left`}>
+                    <button
+                      type="button"
+                      onClick={() => handleSort('conversation_count')}
+                      className={SORT_BTN_CLASS}
+                    >
+                      Konuşmalar
+                      {renderSortIcon('conversation_count')}
+                    </button>
+                  </th>
+                  <th className={`${TH_CLASS} text-left`}>
+                    <button
+                      type="button"
+                      onClick={() => handleSort('qa_count')}
+                      className={SORT_BTN_CLASS}
+                    >
+                      Sorular
+                      {renderSortIcon('qa_count')}
+                    </button>
+                  </th>
+                  <th className={`${TH_CLASS} text-left`}>Durum</th>
+                  <th className={`${TH_CLASS} text-left`}>
+                    <button
+                      type="button"
+                      onClick={() => handleSort('updated_at')}
+                      className={SORT_BTN_CLASS}
+                    >
+                      Son Güncelleme
+                      {renderSortIcon('updated_at')}
+                    </button>
+                  </th>
+                  <th className={`${TH_CLASS} text-right w-[120px]`}>İşlemler</th>
                 </tr>
-              ) : (
-                filteredBots.map((bot) => (
-                  <tr
-                    key={bot.id}
-                    className="border-b border-[var(--border)] last:border-b-0 hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer"
-                  >
-                    <td className="px-4 py-3.5">
-                      <div className="flex items-center gap-2.5">
-                        <BotAvatar name={bot.name} />
-                        <div>
-                          <div className="font-medium text-[var(--text)]">
-                            {bot.name}
-                          </div>
-                          <div className="text-[11px] text-[var(--text-dim)]">
-                            Chatbot
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3.5 text-[var(--text)]">
-                      {(bot.conversation_count ?? 0).toLocaleString('tr-TR')}
-                    </td>
-                    <td className="px-4 py-3.5 text-[var(--text)]">
-                      {(bot.qa_count ?? 0).toLocaleString('tr-TR')}
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <StatusBadge status={getBotStatus(bot)} />
-                    </td>
-                    <td className="px-4 py-3.5 text-[var(--text-muted)]">
-                      {formatDate(bot.updated_at)}
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <div
-                        className="flex items-center gap-1 justify-end"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <button
-                          type="button"
-                          title="Düzenle"
-                          className="w-[30px] h-[30px] rounded-md flex items-center justify-center text-[var(--text-muted)] hover:bg-[var(--bg-app)] hover:text-[var(--text)] transition-colors"
-                        >
-                          <Edit3 size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          title="Kopyala"
-                          className="w-[30px] h-[30px] rounded-md flex items-center justify-center text-[var(--text-muted)] hover:bg-[var(--bg-app)] hover:text-[var(--text)] transition-colors"
-                        >
-                          <Copy size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          title="Sil"
-                          className="w-[30px] h-[30px] rounded-md flex items-center justify-center text-[var(--text-muted)] hover:bg-[var(--bg-app)] hover:text-[var(--danger)] transition-colors"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
+              </thead>
+              <tbody>
+                {isEmpty ? (
+                  <tr>
+                    <td colSpan={6}>
+                      <EmptyState
+                        icon={<SearchX size={20} />}
+                        title="Bot bulunamadı"
+                        description="Arama veya filtreni değiştirmeyi dene."
+                      />
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  filteredBots.map((bot) => (
+                    <tr
+                      key={bot.id}
+                      className="border-b border-[var(--border)] last:border-b-0 hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer"
+                    >
+                      <td className="px-4 py-3.5">
+                        <div className="flex items-center gap-2.5">
+                          <BotAvatar name={bot.name} />
+                          <div>
+                            <div className="font-medium text-[var(--text)]">
+                              {bot.name}
+                            </div>
+                            <div className="text-[11px] text-[var(--text-dim)]">
+                              Chatbot
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3.5 text-[var(--text)]">
+                        {(bot.conversation_count ?? 0).toLocaleString('tr-TR')}
+                      </td>
+                      <td className="px-4 py-3.5 text-[var(--text)]">
+                        {(bot.qa_count ?? 0).toLocaleString('tr-TR')}
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <StatusBadge status={getBotStatus(bot)} />
+                      </td>
+                      <td className="px-4 py-3.5 text-[var(--text-muted)]">
+                        {formatDate(bot.updated_at)}
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <div
+                          className="flex items-center gap-1 justify-end"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            type="button"
+                            title="Düzenle"
+                            className="w-[30px] h-[30px] rounded-md flex items-center justify-center text-[var(--text-muted)] hover:bg-[var(--bg-app)] hover:text-[var(--text)] transition-colors"
+                          >
+                            <Edit3 size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            title="Kopyala"
+                            className="w-[30px] h-[30px] rounded-md flex items-center justify-center text-[var(--text-muted)] hover:bg-[var(--bg-app)] hover:text-[var(--text)] transition-colors"
+                          >
+                            <Copy size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            title="Sil"
+                            className="w-[30px] h-[30px] rounded-md flex items-center justify-center text-[var(--text-muted)] hover:bg-[var(--bg-app)] hover:text-[var(--danger)] transition-colors"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="md:hidden">
+            {isEmpty ? (
+              <EmptyState
+                icon={<SearchX size={20} />}
+                title="Bot bulunamadı"
+                description="Arama veya filtreni değiştirmeyi dene."
+              />
+            ) : (
+              filteredBots.map((bot) => (
+                <div
+                  key={bot.id}
+                  className="p-4 border-b border-[var(--border)] last:border-b-0 cursor-pointer"
+                >
+                  <div className="flex items-start justify-between gap-2 mb-3">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <BotAvatar name={bot.name} size={40} />
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-[15px] font-medium text-[var(--text)] truncate">
+                          {bot.name}
+                        </h3>
+                        <p className="text-[11px] text-[var(--text-dim)]">
+                          Chatbot
+                        </p>
+                      </div>
+                    </div>
+                    <BotActionMenu
+                      botId={bot.id}
+                      onEdit={() => {}}
+                      onCopy={() => {}}
+                      onDelete={() => {}}
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-3 mb-3">
+                    <StatusBadge status={getBotStatus(bot)} />
+                    <span className="text-xs text-[var(--text-muted)]">
+                      {formatDate(bot.updated_at)}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className={METRIC_CHIP_CLASS}>
+                      {(bot.conversation_count ?? 0).toLocaleString('tr-TR')}{' '}
+                      Konuşma
+                    </span>
+                    <span className={METRIC_CHIP_CLASS}>
+                      {(bot.qa_count ?? 0).toLocaleString('tr-TR')} Soru
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </main>
     </div>

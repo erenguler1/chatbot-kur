@@ -1,9 +1,21 @@
-import { Edit3, Copy, Trash2, Plus } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import {
+  Edit3,
+  Copy,
+  Trash2,
+  Plus,
+  Search,
+  Download,
+  ChevronsUpDown,
+  ArrowUp,
+  ArrowDown,
+  SearchX,
+} from 'lucide-react'
 import { Header } from '../components/Header'
 import { BotAvatar } from '../components/BotAvatar'
 import { StatusBadge } from '../components/StatusBadge'
 import { formatDate } from '../lib/date'
-import { getBotStatus, type Bot } from '../types/bot'
+import { getBotStatus, type Bot, type BotStatus } from '../types/bot'
 
 const MOCK_BOTS: Bot[] = [
   {
@@ -28,10 +40,81 @@ const MOCK_BOTS: Bot[] = [
   },
 ]
 
+type SortKey = 'conversation_count' | 'qa_count' | 'updated_at'
+type SortOrder = 'asc' | 'desc'
+type FilterValue = 'all' | BotStatus
+
+const FILTERS: Array<{ value: FilterValue; label: string }> = [
+  { value: 'all', label: 'Tümü' },
+  { value: 'active', label: 'Aktif' },
+  { value: 'paused', label: 'Duraklatıldı' },
+  { value: 'draft', label: 'Taslak' },
+]
+
 const TH_CLASS =
   'px-4 py-3 bg-[var(--bg-app)] text-[var(--text-muted)] font-medium text-[12px] uppercase tracking-wider border-b border-[var(--border)]'
 
+const SORT_BTN_CLASS =
+  'inline-flex items-center gap-1.5 font-medium uppercase tracking-wider text-[12px] text-[var(--text-muted)] hover:text-[var(--text)] transition-colors'
+
 export function Dashboard() {
+  const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState<FilterValue>('all')
+  const [sortKey, setSortKey] = useState<SortKey | null>(null)
+  const [sortOrder, setSortOrder] = useState<SortOrder>('asc')
+
+  function handleSort(key: SortKey) {
+    if (sortKey !== key) {
+      setSortKey(key)
+      setSortOrder('asc')
+      return
+    }
+    if (sortOrder === 'asc') {
+      setSortOrder('desc')
+      return
+    }
+    setSortKey(null)
+    setSortOrder('asc')
+  }
+
+  function renderSortIcon(key: SortKey) {
+    if (sortKey !== key) return <ChevronsUpDown size={12} />
+    return sortOrder === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />
+  }
+
+  const filteredBots = useMemo(() => {
+    let result = MOCK_BOTS
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLocaleLowerCase('tr-TR')
+      result = result.filter((bot) =>
+        bot.name.toLocaleLowerCase('tr-TR').includes(q),
+      )
+    }
+
+    if (statusFilter !== 'all') {
+      result = result.filter((bot) => getBotStatus(bot) === statusFilter)
+    }
+
+    if (sortKey) {
+      const dir = sortOrder === 'asc' ? 1 : -1
+      result = [...result].sort((a, b) => {
+        let av: number
+        let bv: number
+        if (sortKey === 'updated_at') {
+          av = new Date(a.updated_at).getTime()
+          bv = new Date(b.updated_at).getTime()
+        } else {
+          av = a[sortKey] ?? 0
+          bv = b[sortKey] ?? 0
+        }
+        return (av < bv ? -1 : av > bv ? 1 : 0) * dir
+      })
+    }
+
+    return result
+  }, [searchQuery, statusFilter, sortKey, sortOrder])
+
   return (
     <div className="min-h-screen bg-[var(--bg-app)] text-[var(--text)]">
       <Header />
@@ -53,74 +136,170 @@ export function Dashboard() {
         </div>
 
         <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-[var(--radius-card)] overflow-hidden">
+          <div className="px-4 py-3.5 border-b border-[var(--border)] flex items-center gap-3 flex-wrap">
+            <div className="relative w-60">
+              <Search
+                size={14}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none"
+              />
+              <input
+                type="text"
+                placeholder="Bot ara..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full h-8 bg-[var(--bg-app)] border border-[var(--border)] rounded-[var(--radius-input)] pl-9 pr-3 text-sm text-[var(--text)] placeholder:text-[var(--text-dim)] focus:outline-none focus:border-[var(--accent)] transition-colors"
+              />
+            </div>
+
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {FILTERS.map((filter) => {
+                const isActive = statusFilter === filter.value
+                return (
+                  <button
+                    key={filter.value}
+                    type="button"
+                    onClick={() => setStatusFilter(filter.value)}
+                    className={`inline-flex items-center h-8 rounded-full px-3 text-xs font-medium transition-colors ${
+                      isActive
+                        ? 'bg-[var(--accent-soft)] text-[var(--accent)]'
+                        : 'bg-[var(--bg-app)] text-[var(--text-muted)] hover:text-[var(--text)]'
+                    }`}
+                  >
+                    {filter.label}
+                  </button>
+                )
+              })}
+            </div>
+
+            <button
+              type="button"
+              className="ml-auto inline-flex items-center gap-2 border border-[var(--border)] bg-transparent hover:bg-[var(--bg-app)] text-[var(--text)] text-sm rounded-[var(--radius-btn)] px-3 py-1.5 transition-colors"
+            >
+              <Download size={14} />
+              Dışa Aktar
+            </button>
+          </div>
+
           <table className="w-full border-collapse text-[13px]">
             <thead>
               <tr>
                 <th className={`${TH_CLASS} text-left`}>Bot Adı</th>
-                <th className={`${TH_CLASS} text-left`}>Konuşmalar</th>
-                <th className={`${TH_CLASS} text-left`}>Sorular</th>
+                <th className={`${TH_CLASS} text-left`}>
+                  <button
+                    type="button"
+                    onClick={() => handleSort('conversation_count')}
+                    className={SORT_BTN_CLASS}
+                  >
+                    Konuşmalar
+                    {renderSortIcon('conversation_count')}
+                  </button>
+                </th>
+                <th className={`${TH_CLASS} text-left`}>
+                  <button
+                    type="button"
+                    onClick={() => handleSort('qa_count')}
+                    className={SORT_BTN_CLASS}
+                  >
+                    Sorular
+                    {renderSortIcon('qa_count')}
+                  </button>
+                </th>
                 <th className={`${TH_CLASS} text-left`}>Durum</th>
-                <th className={`${TH_CLASS} text-left`}>Son Güncelleme</th>
+                <th className={`${TH_CLASS} text-left`}>
+                  <button
+                    type="button"
+                    onClick={() => handleSort('updated_at')}
+                    className={SORT_BTN_CLASS}
+                  >
+                    Son Güncelleme
+                    {renderSortIcon('updated_at')}
+                  </button>
+                </th>
                 <th className={`${TH_CLASS} text-right w-[120px]`}>İşlemler</th>
               </tr>
             </thead>
             <tbody>
-              {MOCK_BOTS.map((bot) => (
-                <tr
-                  key={bot.id}
-                  className="border-b border-[var(--border)] last:border-b-0 hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer"
-                >
-                  <td className="px-4 py-3.5">
-                    <div className="flex items-center gap-2.5">
-                      <BotAvatar name={bot.name} />
-                      <div>
-                        <div className="font-medium text-[var(--text)]">{bot.name}</div>
-                        <div className="text-[11px] text-[var(--text-dim)]">Chatbot</div>
+              {filteredBots.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="p-[60px]">
+                    <div className="flex flex-col items-center gap-2 text-center">
+                      <div className="w-12 h-12 rounded-full bg-[var(--bg-app)] flex items-center justify-center">
+                        <SearchX
+                          size={20}
+                          className="text-[var(--text-muted)]"
+                        />
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3.5 text-[var(--text)]">
-                    {(bot.conversation_count ?? 0).toLocaleString('tr-TR')}
-                  </td>
-                  <td className="px-4 py-3.5 text-[var(--text)]">
-                    {(bot.qa_count ?? 0).toLocaleString('tr-TR')}
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <StatusBadge status={getBotStatus(bot)} />
-                  </td>
-                  <td className="px-4 py-3.5 text-[var(--text-muted)]">
-                    {formatDate(bot.updated_at)}
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <div
-                      className="flex items-center gap-1 justify-end"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <button
-                        type="button"
-                        title="Düzenle"
-                        className="w-[30px] h-[30px] rounded-md flex items-center justify-center text-[var(--text-muted)] hover:bg-[var(--bg-app)] hover:text-[var(--text)] transition-colors"
-                      >
-                        <Edit3 size={14} />
-                      </button>
-                      <button
-                        type="button"
-                        title="Kopyala"
-                        className="w-[30px] h-[30px] rounded-md flex items-center justify-center text-[var(--text-muted)] hover:bg-[var(--bg-app)] hover:text-[var(--text)] transition-colors"
-                      >
-                        <Copy size={14} />
-                      </button>
-                      <button
-                        type="button"
-                        title="Sil"
-                        className="w-[30px] h-[30px] rounded-md flex items-center justify-center text-[var(--text-muted)] hover:bg-[var(--bg-app)] hover:text-[var(--danger)] transition-colors"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      <h3 className="text-[15px] font-medium text-[var(--text)]">
+                        Bot bulunamadı
+                      </h3>
+                      <p className="text-[12px] text-[var(--text-muted)]">
+                        Arama veya filtreni değiştirmeyi dene.
+                      </p>
                     </div>
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filteredBots.map((bot) => (
+                  <tr
+                    key={bot.id}
+                    className="border-b border-[var(--border)] last:border-b-0 hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer"
+                  >
+                    <td className="px-4 py-3.5">
+                      <div className="flex items-center gap-2.5">
+                        <BotAvatar name={bot.name} />
+                        <div>
+                          <div className="font-medium text-[var(--text)]">
+                            {bot.name}
+                          </div>
+                          <div className="text-[11px] text-[var(--text-dim)]">
+                            Chatbot
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5 text-[var(--text)]">
+                      {(bot.conversation_count ?? 0).toLocaleString('tr-TR')}
+                    </td>
+                    <td className="px-4 py-3.5 text-[var(--text)]">
+                      {(bot.qa_count ?? 0).toLocaleString('tr-TR')}
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <StatusBadge status={getBotStatus(bot)} />
+                    </td>
+                    <td className="px-4 py-3.5 text-[var(--text-muted)]">
+                      {formatDate(bot.updated_at)}
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <div
+                        className="flex items-center gap-1 justify-end"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          type="button"
+                          title="Düzenle"
+                          className="w-[30px] h-[30px] rounded-md flex items-center justify-center text-[var(--text-muted)] hover:bg-[var(--bg-app)] hover:text-[var(--text)] transition-colors"
+                        >
+                          <Edit3 size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          title="Kopyala"
+                          className="w-[30px] h-[30px] rounded-md flex items-center justify-center text-[var(--text-muted)] hover:bg-[var(--bg-app)] hover:text-[var(--text)] transition-colors"
+                        >
+                          <Copy size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          title="Sil"
+                          className="w-[30px] h-[30px] rounded-md flex items-center justify-center text-[var(--text-muted)] hover:bg-[var(--bg-app)] hover:text-[var(--danger)] transition-colors"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

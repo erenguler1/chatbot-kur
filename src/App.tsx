@@ -5,6 +5,7 @@ import { Login } from './pages/Login'
 import { Signup } from './pages/Signup'
 import { ForgotPassword } from './pages/ForgotPassword'
 import { Dashboard } from './pages/Dashboard'
+import { NewBot } from './pages/NewBot'
 
 function App() {
   return (
@@ -19,6 +20,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/bots/new"
+            element={
+              <ProtectedRoute>
+                <NewBot />
               </ProtectedRoute>
             }
           />

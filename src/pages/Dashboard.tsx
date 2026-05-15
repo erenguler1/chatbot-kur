@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Edit3,
   Copy,
@@ -103,6 +104,7 @@ function BotCardSkeleton() {
 }
 
 export function Dashboard() {
+  const navigate = useNavigate()
   const { bots, isLoading, error, refetch } = useBots()
 
   const [searchQuery, setSearchQuery] = useState('')
@@ -179,6 +181,7 @@ export function Dashboard() {
           </div>
           <button
             type="button"
+            onClick={() => navigate('/bots/new')}
             className="inline-flex items-center gap-2 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white font-medium text-sm rounded-[var(--radius-btn)] px-4 py-2.5 transition-colors"
           >
             <Plus size={16} />

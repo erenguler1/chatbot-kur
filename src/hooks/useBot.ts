@@ -30,6 +30,7 @@ export function useBot(botId: string | undefined): UseBotResult {
       .from('bots')
       .select('*')
       .eq('id', botId)
+      .is('deleted_at', null)
       .maybeSingle()
 
     if (queryError) {

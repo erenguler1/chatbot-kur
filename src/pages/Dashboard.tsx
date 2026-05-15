@@ -11,6 +11,7 @@ import {
   ArrowDown,
   SearchX,
   AlertCircle,
+  Sparkles,
 } from 'lucide-react'
 import { Header } from '../components/Header'
 import { BotAvatar } from '../components/BotAvatar'
@@ -161,7 +162,9 @@ export function Dashboard() {
     return result
   }, [bots, searchQuery, statusFilter, sortKey, sortOrder])
 
-  const isEmpty = !isLoading && !error && filteredBots.length === 0
+  const hasNoBots = !isLoading && !error && bots.length === 0
+  const hasNoFilterResults =
+    !isLoading && !error && bots.length > 0 && filteredBots.length === 0
 
   return (
     <div className="min-h-screen bg-[var(--bg-app)] text-[var(--text)]">
@@ -291,7 +294,17 @@ export function Dashboard() {
                       Array.from({ length: 5 }).map((_, i) => (
                         <BotRowSkeleton key={i} />
                       ))
-                    ) : isEmpty ? (
+                    ) : hasNoBots ? (
+                      <tr>
+                        <td colSpan={6}>
+                          <EmptyState
+                            icon={<Sparkles size={20} />}
+                            title="Henüz bot oluşturmadın"
+                            description="İlk botunu oluştur ve hemen başla."
+                          />
+                        </td>
+                      </tr>
+                    ) : hasNoFilterResults ? (
                       <tr>
                         <td colSpan={6}>
                           <EmptyState
@@ -372,7 +385,13 @@ export function Dashboard() {
                   Array.from({ length: 3 }).map((_, i) => (
                     <BotCardSkeleton key={i} />
                   ))
-                ) : isEmpty ? (
+                ) : hasNoBots ? (
+                  <EmptyState
+                    icon={<Sparkles size={20} />}
+                    title="Henüz bot oluşturmadın"
+                    description="İlk botunu oluştur ve hemen başla."
+                  />
+                ) : hasNoFilterResults ? (
                   <EmptyState
                     icon={<SearchX size={20} />}
                     title="Bot bulunamadı"

@@ -6,6 +6,10 @@ import { Signup } from './pages/Signup'
 import { ForgotPassword } from './pages/ForgotPassword'
 import { Dashboard } from './pages/Dashboard'
 import { NewBot } from './pages/NewBot'
+import { BotDetail } from './pages/BotDetail'
+import { BotSettings } from './pages/BotSettings'
+import { BotQA } from './pages/BotQA'
+import { BotTest } from './pages/BotTest'
 
 function App() {
   return (
@@ -31,6 +35,19 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/bots/:id"
+            element={
+              <ProtectedRoute>
+                <BotDetail />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<Navigate to="settings" replace />} />
+            <Route path="settings" element={<BotSettings />} />
+            <Route path="qa" element={<BotQA />} />
+            <Route path="test" element={<BotTest />} />
+          </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

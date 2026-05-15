@@ -321,6 +321,7 @@ export function Dashboard() {
                       filteredBots.map((bot) => (
                         <tr
                           key={bot.id}
+                          onClick={() => navigate(`/bots/${bot.id}/settings`)}
                           className="border-b border-[var(--border)] last:border-b-0 hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer"
                         >
                           <td className="px-4 py-3.5">
@@ -404,6 +405,7 @@ export function Dashboard() {
                   filteredBots.map((bot) => (
                     <div
                       key={bot.id}
+                      onClick={() => navigate(`/bots/${bot.id}/settings`)}
                       className="p-4 border-b border-[var(--border)] last:border-b-0 cursor-pointer"
                     >
                       <div className="flex items-start justify-between gap-2 mb-3">
@@ -418,12 +420,14 @@ export function Dashboard() {
                             </p>
                           </div>
                         </div>
-                        <BotActionMenu
-                          botId={bot.id}
-                          onEdit={() => {}}
-                          onCopy={() => {}}
-                          onDelete={() => {}}
-                        />
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <BotActionMenu
+                            botId={bot.id}
+                            onEdit={() => {}}
+                            onCopy={() => {}}
+                            onDelete={() => {}}
+                          />
+                        </div>
                       </div>
 
                       <div className="flex items-center gap-3 mb-3">

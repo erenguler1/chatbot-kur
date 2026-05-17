@@ -151,7 +151,9 @@ export function BotSettings() {
       if (error) throw error
       await refetch()
       setSuccessMessage('Değişiklikler kaydedildi.')
-      setTimeout(() => setSuccessMessage(''), 3000)
+      setTimeout(() => {
+        setSuccessMessage('')
+      }, 3000)
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Kaydedilemedi.')
     } finally {

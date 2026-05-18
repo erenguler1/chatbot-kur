@@ -4,6 +4,7 @@ import { AlertCircle, Edit3, HelpCircle, Plus, Trash2 } from 'lucide-react'
 import { EmptyState } from '../components/EmptyState'
 import { Skeleton } from '../components/Skeleton'
 import { QAFormDialog } from '../components/QAFormDialog'
+import { QADeleteDialog } from '../components/QADeleteDialog'
 import { useQAPairs } from '../hooks/useQAPairs'
 import type { Bot } from '../types/bot'
 import type { QAPair } from '../types/qa'
@@ -33,6 +34,9 @@ export function BotQA() {
   const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create')
   const [editingQA, setEditingQA] = useState<QAPair | null>(null)
 
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deletingQA, setDeletingQA] = useState<QAPair | null>(null)
+
   const openCreateDialog = () => {
     setDialogMode('create')
     setEditingQA(null)
@@ -43,6 +47,11 @@ export function BotQA() {
     setDialogMode('edit')
     setEditingQA(qa)
     setDialogOpen(true)
+  }
+
+  const openDeleteDialog = (qa: QAPair) => {
+    setDeletingQA(qa)
+    setDeleteDialogOpen(true)
   }
 
   const renderTopBar = (count: number) => (
@@ -134,7 +143,7 @@ export function BotQA() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => {}}
+                    onClick={() => openDeleteDialog(qa)}
                     className={ICON_BTN_DANGER_CLASS}
                     aria-label="Sil"
                   >
@@ -161,6 +170,12 @@ export function BotQA() {
         mode={dialogMode}
         botId={bot.id}
         qaPair={editingQA ?? undefined}
+        onSuccess={() => void refetch()}
+      />
+      <QADeleteDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        qaPair={deletingQA}
         onSuccess={() => void refetch()}
       />
     </div>

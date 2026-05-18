@@ -125,7 +125,7 @@ export function BotDetail() {
           Botlarıma Dön
         </button>
 
-        {isLoading ? (
+        {isLoading && !bot ? (
           <div className="flex items-center gap-3 mb-6">
             <Skeleton width="w-12" height="h-12" className="rounded-lg" />
             <div className="flex flex-col gap-2">
@@ -133,7 +133,7 @@ export function BotDetail() {
               <Skeleton width="w-20" height="h-5" className="rounded-full" />
             </div>
           </div>
-        ) : error ? (
+        ) : error && !bot ? (
           <div className="flex flex-col items-center">
             <EmptyState
               icon={<AlertCircle size={20} />}

@@ -87,7 +87,7 @@ export function BotSettings() {
     setBrandColor(bot.brand_color)
     setWidgetPosition(bot.widget_position)
     setStatus(bot.status)
-  }, [bot])
+  }, [bot.id])
 
   const handleSubmit = async (e: SubmitEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -149,11 +149,11 @@ export function BotSettings() {
         })
         .eq('id', bot.id)
       if (error) throw error
-      await refetch()
       setSuccessMessage('Değişiklikler kaydedildi.')
       setTimeout(() => {
         setSuccessMessage('')
       }, 3000)
+      await refetch()
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Kaydedilemedi.')
     } finally {

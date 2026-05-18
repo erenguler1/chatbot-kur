@@ -9,6 +9,7 @@ import { NewBot } from './pages/NewBot'
 import { BotDetail } from './pages/BotDetail'
 import { BotSettings } from './pages/BotSettings'
 import { BotQA } from './pages/BotQA'
+import { BotPrompt } from './pages/BotPrompt'
 import { BotTest } from './pages/BotTest'
 
 function App() {
@@ -46,6 +47,7 @@ function App() {
             <Route index element={<Navigate to="settings" replace />} />
             <Route path="settings" element={<BotSettings />} />
             <Route path="qa" element={<BotQA />} />
+            <Route path="prompt" element={<BotPrompt />} />
             <Route path="test" element={<BotTest />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />

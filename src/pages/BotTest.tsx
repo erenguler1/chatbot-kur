@@ -1,10 +1,17 @@
-import { useEffect, useRef, useState } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+} from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { AlertCircle, MessageCircle, Send } from 'lucide-react'
 import { EmptyState } from '../components/EmptyState'
 import { Skeleton } from '../components/Skeleton'
 import { useConversation } from '../hooks/useConversation'
 import { useMessages } from '../hooks/useMessages'
+import { supabase } from '../lib/supabase'
 import type { Bot } from '../types/bot'
 import type { Message } from '../types/conversation'
 
@@ -61,9 +68,12 @@ export function BotTest() {
     messages,
     isLoading: msgLoading,
     error: msgError,
+    refetch: refetchMessages,
   } = useMessages(conversation?.id ?? null)
 
   const [inputText, setInputText] = useState('')
+  const [isSending, setIsSending] = useState(false)
+  const [sendError, setSendError] = useState('')
   const messagesContainerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -71,10 +81,54 @@ export function BotTest() {
       messagesContainerRef.current.scrollTop =
         messagesContainerRef.current.scrollHeight
     }
-  }, [messages.length])
+  }, [messages.length, isSending])
 
   const isInitialLoading = convLoading || (msgLoading && messages.length === 0)
   const error = convError ?? msgError
+
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const trimmed = inputText.trim()
+    if (!trimmed || !conversation || isSending) return
+
+    setIsSending(true)
+    setSendError('')
+    const messageToSend = trimmed
+    setInputText('')
+
+    try {
+      const { error: invokeError } = await supabase.functions.invoke('chat', {
+        body: {
+          botId: bot.id,
+          conversationId: conversation.id,
+          userMessage: messageToSend,
+        },
+      })
+
+      if (invokeError) {
+        throw new Error(invokeError.message || 'Bot cevap veremedi.')
+      }
+
+      await refetchMessages()
+    } catch (err) {
+      setSendError(
+        err instanceof Error ? err.message : 'Beklenmedik bir hata oluştu.',
+      )
+      setInputText(messageToSend)
+    } finally {
+      setIsSending(false)
+    }
+  }
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      e.currentTarget.form?.requestSubmit()
+    }
+  }
+
+  const canSend =
+    Boolean(conversation) && !isSending && inputText.trim().length > 0
 
   return (
     <div className="py-6 flex flex-col h-[calc(100vh-280px)] min-h-[400px]">
@@ -118,37 +172,65 @@ export function BotTest() {
             </p>
           </div>
         ) : (
-          messages.map((message) => (
-            <MessageBubble key={message.id} message={message} />
-          ))
+          <>
+            {messages.map((message) => (
+              <MessageBubble key={message.id} message={message} />
+            ))}
+            {isSending && (
+              <div className="flex justify-start mb-3">
+                <div className="bg-[var(--bg-card-hover)] text-[var(--text-muted)] rounded-lg rounded-bl-sm px-3 py-2 text-sm">
+                  <span className="inline-flex gap-1">
+                    <span className="animate-pulse">•</span>
+                    <span
+                      className="animate-pulse"
+                      style={{ animationDelay: '0.2s' }}
+                    >
+                      •
+                    </span>
+                    <span
+                      className="animate-pulse"
+                      style={{ animationDelay: '0.4s' }}
+                    >
+                      •
+                    </span>
+                  </span>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 
-      <form
-        className="flex gap-2"
-        onSubmit={(e) => {
-          e.preventDefault()
-        }}
-      >
+      <form className="flex gap-2" onSubmit={handleSubmit}>
         <textarea
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
+          onKeyDown={handleKeyDown}
           placeholder="Mesajını yaz..."
           rows={2}
-          disabled
+          disabled={isSending}
           className="flex-1 bg-[var(--bg-card-hover)] border border-[var(--border)] rounded-[var(--radius-input)] px-3 py-2 text-sm resize-none focus:outline-none focus:border-[var(--accent)] disabled:opacity-60 disabled:cursor-not-allowed"
         />
         <button
           type="submit"
-          disabled
+          disabled={!canSend}
           className="inline-flex items-center justify-center bg-[var(--accent)] hover:bg-[var(--accent-hover)] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-[var(--radius-btn)] px-4 self-stretch transition-colors"
         >
           <Send size={16} />
         </button>
       </form>
-      <p className="text-xs text-[var(--text-muted)] mt-2">
-        Mesaj gönderme Parça B'de aktifleşecek.
-      </p>
+      {sendError && (
+        <div className="flex items-center justify-between mt-2 p-2 bg-[var(--bg-card-hover)] border border-[var(--danger)] rounded-[var(--radius-input)]">
+          <p className="text-xs text-[var(--danger)]">{sendError}</p>
+          <button
+            type="button"
+            onClick={() => setSendError('')}
+            className="text-xs text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
+          >
+            Kapat
+          </button>
+        </div>
+      )}
     </div>
   )
 }

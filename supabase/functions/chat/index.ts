@@ -160,52 +160,91 @@ Deno.serve(async (req: Request) => {
       { role: 'user' as const, content: trimmedMessage },
     ]
 
-    const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-5-20250929',
-      max_tokens: 1024,
-      system: systemPrompt,
-      messages: claudeMessages,
-    })
+    const encoder = new TextEncoder()
+    const sseEvent = (payload: Record<string, unknown>): Uint8Array =>
+      encoder.encode(`data: ${JSON.stringify(payload)}\n\n`)
 
-    const assistantContent = response.content
-      .filter((block) => block.type === 'text')
-      .map((block) => (block.type === 'text' ? block.text : ''))
-      .join('')
+    const stream = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        let assistantContent = ''
+        let inputTokens = 0
+        let outputTokens = 0
 
-    if (!assistantContent) {
-      return jsonResponse({ error: 'Bot cevap üretmedi' }, 500)
-    }
+        try {
+          const claudeStream = anthropic.messages.stream({
+            model: 'claude-sonnet-4-5-20250929',
+            max_tokens: 1024,
+            system: systemPrompt,
+            messages: claudeMessages,
+          })
 
-    const { error: assistantMsgError } = await supabase.from('messages').insert({
-      conversation_id: conversationId,
-      role: 'assistant',
-      content: assistantContent,
-      input_tokens: response.usage.input_tokens,
-      output_tokens: response.usage.output_tokens,
-    })
+          for await (const event of claudeStream) {
+            if (
+              event.type === 'content_block_delta' &&
+              event.delta.type === 'text_delta'
+            ) {
+              const text = event.delta.text
+              assistantContent += text
+              controller.enqueue(sseEvent({ type: 'chunk', text }))
+            }
+          }
 
-    if (assistantMsgError) {
-      return jsonResponse({ error: 'Cevap kaydedilemedi' }, 500)
-    }
+          const finalMessage = await claudeStream.finalMessage()
+          inputTokens = finalMessage.usage.input_tokens
+          outputTokens = finalMessage.usage.output_tokens
 
-    await supabase
-      .from('conversations')
-      .update({ updated_at: new Date().toISOString() })
-      .eq('id', conversationId)
+          if (!assistantContent) {
+            controller.enqueue(
+              sseEvent({ type: 'error', message: 'Bot cevap üretmedi' }),
+            )
+            return
+          }
 
-    return jsonResponse(
-      {
-        message: {
-          role: 'assistant',
-          content: assistantContent,
-        },
-        usage: {
-          input_tokens: response.usage.input_tokens,
-          output_tokens: response.usage.output_tokens,
-        },
+          const { error: insertError } = await supabase.from('messages').insert({
+            conversation_id: conversationId,
+            role: 'assistant',
+            content: assistantContent,
+            input_tokens: inputTokens,
+            output_tokens: outputTokens,
+          })
+
+          if (insertError) {
+            controller.enqueue(
+              sseEvent({ type: 'error', message: 'Cevap kaydedilemedi' }),
+            )
+            return
+          }
+
+          await supabase
+            .from('conversations')
+            .update({ updated_at: new Date().toISOString() })
+            .eq('id', conversationId)
+
+          controller.enqueue(
+            sseEvent({
+              type: 'done',
+              input_tokens: inputTokens,
+              output_tokens: outputTokens,
+            }),
+          )
+        } catch (err) {
+          const message = err instanceof Error ? err.message : 'Bilinmeyen hata'
+          controller.enqueue(sseEvent({ type: 'error', message }))
+        } finally {
+          controller.close()
+        }
       },
-      200,
-    )
+    })
+
+    return new Response(stream, {
+      status: 200,
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      },
+    })
   } catch (error) {
     console.error('Edge Function error:', error)
     return jsonResponse(

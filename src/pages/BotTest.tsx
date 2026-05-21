@@ -11,7 +11,7 @@ import { EmptyState } from '../components/EmptyState'
 import { Skeleton } from '../components/Skeleton'
 import { useConversation } from '../hooks/useConversation'
 import { useMessages } from '../hooks/useMessages'
-import { supabase } from '../lib/supabase'
+import { useStreamingChat } from '../hooks/useStreamingChat'
 import type { Bot } from '../types/bot'
 import type { Message } from '../types/conversation'
 
@@ -72,16 +72,32 @@ export function BotTest() {
   } = useMessages(conversation?.id ?? null)
 
   const [inputText, setInputText] = useState('')
-  const [isSending, setIsSending] = useState(false)
-  const [sendError, setSendError] = useState('')
+  const [optimisticUserMessage, setOptimisticUserMessage] = useState<
+    string | null
+  >(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
+
+  const {
+    isStreaming,
+    streamingText,
+    error: streamError,
+    startStream,
+    reset: resetStream,
+  } = useStreamingChat()
 
   useEffect(() => {
     if (messagesContainerRef.current) {
       messagesContainerRef.current.scrollTop =
         messagesContainerRef.current.scrollHeight
     }
-  }, [messages.length, isSending])
+  }, [messages.length, isStreaming, streamingText, optimisticUserMessage])
+
+  useEffect(() => {
+    if (streamError && optimisticUserMessage) {
+      setInputText(optimisticUserMessage)
+      setOptimisticUserMessage(null)
+    }
+  }, [streamError, optimisticUserMessage])
 
   const isInitialLoading = convLoading || (msgLoading && messages.length === 0)
   const error = convError ?? msgError
@@ -89,34 +105,25 @@ export function BotTest() {
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const trimmed = inputText.trim()
-    if (!trimmed || !conversation || isSending) return
+    if (!trimmed || !conversation || isStreaming) return
 
-    setIsSending(true)
-    setSendError('')
     const messageToSend = trimmed
     setInputText('')
+    setOptimisticUserMessage(messageToSend)
+    resetStream()
 
     try {
-      const { error: invokeError } = await supabase.functions.invoke('chat', {
-        body: {
-          botId: bot.id,
-          conversationId: conversation.id,
-          userMessage: messageToSend,
-        },
+      await startStream({
+        botId: bot.id,
+        conversationId: conversation.id,
+        userMessage: messageToSend,
       })
 
-      if (invokeError) {
-        throw new Error(invokeError.message || 'Bot cevap veremedi.')
-      }
-
       await refetchMessages()
-    } catch (err) {
-      setSendError(
-        err instanceof Error ? err.message : 'Beklenmedik bir hata oluştu.',
-      )
+      setOptimisticUserMessage(null)
+    } catch {
       setInputText(messageToSend)
-    } finally {
-      setIsSending(false)
+      setOptimisticUserMessage(null)
     }
   }
 
@@ -128,7 +135,7 @@ export function BotTest() {
   }
 
   const canSend =
-    Boolean(conversation) && !isSending && inputText.trim().length > 0
+    Boolean(conversation) && !isStreaming && inputText.trim().length > 0
 
   return (
     <div className="py-6 flex flex-col h-[calc(100vh-280px)] min-h-[400px]">
@@ -165,7 +172,7 @@ export function BotTest() {
               Yeniden Dene
             </button>
           </div>
-        ) : messages.length === 0 ? (
+        ) : messages.length === 0 && !optimisticUserMessage ? (
           <div className="flex items-center justify-center h-full">
             <p className="text-sm text-[var(--text-muted)]">
               Bot'unu test etmek için ilk mesajını yaz.
@@ -176,26 +183,31 @@ export function BotTest() {
             {messages.map((message) => (
               <MessageBubble key={message.id} message={message} />
             ))}
-            {isSending && (
-              <div className="flex justify-start mb-3">
-                <div className="bg-[var(--bg-card-hover)] text-[var(--text-muted)] rounded-lg rounded-bl-sm px-3 py-2 text-sm">
-                  <span className="inline-flex gap-1">
-                    <span className="animate-pulse">•</span>
-                    <span
-                      className="animate-pulse"
-                      style={{ animationDelay: '0.2s' }}
-                    >
-                      •
-                    </span>
-                    <span
-                      className="animate-pulse"
-                      style={{ animationDelay: '0.4s' }}
-                    >
-                      •
-                    </span>
-                  </span>
-                </div>
-              </div>
+            {optimisticUserMessage && (
+              <MessageBubble
+                message={{
+                  id: 'optimistic-user',
+                  conversation_id: conversation?.id ?? '',
+                  role: 'user',
+                  content: optimisticUserMessage,
+                  input_tokens: null,
+                  output_tokens: null,
+                  created_at: new Date().toISOString(),
+                }}
+              />
+            )}
+            {optimisticUserMessage && !streamError && (
+              <MessageBubble
+                message={{
+                  id: 'streaming-assistant',
+                  conversation_id: conversation?.id ?? '',
+                  role: 'assistant',
+                  content: streamingText || '●',
+                  input_tokens: null,
+                  output_tokens: null,
+                  created_at: new Date().toISOString(),
+                }}
+              />
             )}
           </>
         )}
@@ -208,7 +220,7 @@ export function BotTest() {
           onKeyDown={handleKeyDown}
           placeholder="Mesajını yaz..."
           rows={2}
-          disabled={isSending}
+          disabled={isStreaming}
           className="flex-1 bg-[var(--bg-card-hover)] border border-[var(--border)] rounded-[var(--radius-input)] px-3 py-2 text-sm resize-none focus:outline-none focus:border-[var(--accent)] disabled:opacity-60 disabled:cursor-not-allowed"
         />
         <button
@@ -219,12 +231,12 @@ export function BotTest() {
           <Send size={16} />
         </button>
       </form>
-      {sendError && (
+      {streamError && !isStreaming && (
         <div className="flex items-center justify-between mt-2 p-2 bg-[var(--bg-card-hover)] border border-[var(--danger)] rounded-[var(--radius-input)]">
-          <p className="text-xs text-[var(--danger)]">{sendError}</p>
+          <p className="text-xs text-[var(--danger)]">{streamError}</p>
           <button
             type="button"
-            onClick={() => setSendError('')}
+            onClick={() => resetStream()}
             className="text-xs text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
           >
             Kapat

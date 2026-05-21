@@ -9,6 +9,7 @@ interface UseConversationResult {
   isLoading: boolean
   error: PostgrestError | null
   refetch: () => Promise<void>
+  createNew: () => Promise<void>
 }
 
 export function useConversation(botId: string | undefined): UseConversationResult {
@@ -73,9 +74,29 @@ export function useConversation(botId: string | undefined): UseConversationResul
     setIsLoading(false)
   }, [botId, userId])
 
+  const createNew = useCallback(async () => {
+    if (!botId || !userId) return
+
+    setIsLoading(true)
+    setError(null)
+
+    const { data, error: insertError } = await supabase
+      .from('conversations')
+      .insert({ bot_id: botId, user_id: userId, title: 'Yeni sohbet' })
+      .select('*')
+      .single()
+
+    if (insertError) {
+      setError(insertError)
+    } else {
+      setConversation((data ?? null) as Conversation | null)
+    }
+    setIsLoading(false)
+  }, [botId, userId])
+
   useEffect(() => {
     void refetch()
   }, [refetch])
 
-  return { conversation, isLoading, error, refetch }
+  return { conversation, isLoading, error, refetch, createNew }
 }

@@ -19,10 +19,10 @@
 - [ ] Prompt önizleme paneli (oluşan prompt'u görmek için)
 
 ### Hafta 3 — Claude API + Test Sohbeti
-- [ ] Claude API entegrasyonu (anthropic SDK, env'de API key)
-- [ ] Bot Detay sayfasına "Test Sohbeti" sekmesi
-- [ ] Mesajlaşma UI (kullanıcı → bot, bot → kullanıcı, history)
-- [ ] Token/cost takibi (mesaj başına basit log)
+- [x] Claude API entegrasyonu (anthropic SDK, env'de API key) — Edge Function (chat) + streaming SSE
+- [x] Bot Detay sayfasına "Test Sohbeti" sekmesi — BotTest sayfası
+- [x] Mesajlaşma UI (kullanıcı → bot, bot → kullanıcı, history) — optimistic update + streaming bubble + Sıfırla
+- [x] Token/cost takibi (mesaj başına basit log) — messages tablosunda input_tokens/output_tokens
 
 ### Hafta 4 — Public Widget + Deploy
 - [ ] Embed script veya web component (kullanıcı sitesine eklenecek)
@@ -91,6 +91,20 @@ Faz 1 çalışıyor; Faz 2 üstüne kalite katar. Sırası kullanıcı geri bild
 - [ ] Bot kopyalama gerçek işlev
 - [ ] Bot dışa aktar (JSON/CSV)
 - [ ] Onboarding tour (ilk kullanıcı için)
+
+### Chat & Streaming (Hafta 3'ten gelen polish noktaları)
+- [ ] AbortController: useStreamingChat hook unmount olduğunda aktif fetch'i durdurmak. Şu an unmount sırasında fetch arka planda devam ediyor.
+- [ ] Network hata mesajlarının Türkçe çevirisi: "Failed to fetch", "NetworkError" gibi browser/SDK mesajları kullanıcıya İngilizce görünüyor. Bir mapping katmanı eklenmeli.
+- [ ] Orphan user message cleanup: Streaming sırasında Claude fail olursa user mesajı DB'de kalıyor, assistant cevabı yok. UI'da "Tekrar Dene" veya soft-delete cleanup gerekli.
+- [ ] Auto-scroll sticky bottom: streamingText değişince sürekli alta gider. Kullanıcı yukarı scroll yapınca auto-scroll devre dışı kalmalı, en alta inince geri açılmalı (ChatGPT/Slack pattern).
+- [ ] Streaming chunk parçalama iyileştirmesi: Edge Function şu an Anthropic'in default chunk boyutunu kullanıyor (genelde 1-3 kelime). Kelime sınırından parçalamak daha akıcı hissettirebilir. Performans değil UX kararı.
+- [ ] Token sayacı UI: Conversation'da toplam input/output token + yaklaşık dolar maliyeti göster ("Bu sohbet $0.003"). Verisi messages tablosunda zaten var.
+- [ ] "Geçmiş sohbetlerim" listesi: BotTest sekmesinde dropdown veya sidebar — kullanıcı eski conversation'lara dönebilsin. Şu an Sıfırla yeni oluşturuyor ama eskiyi göremezsin.
+- [ ] Bot mesajına "yanlış cevap" feedback butonu (thumbs down): Veri toplama + prompt iyileştirme için.
+
+### Type & Code Quality (Hafta 1-3'te biriken)
+- [ ] SubmitEvent<HTMLFormElement> vs React.FormEvent<HTMLFormElement> tutarsızlığı: BotSettings/NewBot/Login/Signup/ForgotPassword SubmitEvent kullanıyor (yanlış tip), QAFormDialog ve BotTest FormEvent kullanıyor (doğru tip). Tüm dosyaları FormEvent'e çevir.
+- [ ] supabase.ts'te SUPABASE_URL export edilmemiş, useStreamingChat env'i tekrar okuyor. Tek yerden export pattern'i.
 
 ### Diğer
 - [ ] PWA support (telefona "app" gibi yüklenebilsin)

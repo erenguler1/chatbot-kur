@@ -6,7 +6,7 @@ import {
   type KeyboardEvent,
 } from 'react'
 import { useOutletContext } from 'react-router-dom'
-import { AlertCircle, MessageCircle, Send } from 'lucide-react'
+import { AlertCircle, MessageCircle, RotateCcw, Send } from 'lucide-react'
 import { EmptyState } from '../components/EmptyState'
 import { Skeleton } from '../components/Skeleton'
 import { useConversation } from '../hooks/useConversation'
@@ -34,7 +34,19 @@ function MessageBubble({ message }: { message: Message }) {
             : 'bg-[var(--bg-card-hover)] text-[var(--text)] rounded-lg rounded-bl-sm px-3 py-2 max-w-[75%] break-words'
         }
       >
-        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+        {message.content === '●' ? (
+          <span className="inline-flex gap-1">
+            <span className="animate-pulse">●</span>
+            <span className="animate-pulse" style={{ animationDelay: '0.2s' }}>
+              ●
+            </span>
+            <span className="animate-pulse" style={{ animationDelay: '0.4s' }}>
+              ●
+            </span>
+          </span>
+        ) : (
+          <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+        )}
       </div>
     </div>
   )
@@ -63,6 +75,7 @@ export function BotTest() {
     isLoading: convLoading,
     error: convError,
     refetch: refetchConversation,
+    createNew: createNewConversation,
   } = useConversation(bot.id)
   const {
     messages,
@@ -127,6 +140,14 @@ export function BotTest() {
     }
   }
 
+  const handleReset = async () => {
+    if (isStreaming) return
+    setOptimisticUserMessage(null)
+    setInputText('')
+    resetStream()
+    await createNewConversation()
+  }
+
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
@@ -139,11 +160,26 @@ export function BotTest() {
 
   return (
     <div className="py-6 flex flex-col h-[calc(100vh-280px)] min-h-[400px]">
-      <div className="flex items-center gap-2 mb-3">
-        <MessageCircle size={16} className="text-[var(--text-muted)]" />
-        <h3 className="text-base font-semibold text-[var(--text)]">
-          Test Sohbeti
-        </h3>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <MessageCircle size={16} className="text-[var(--text-muted)]" />
+          <h3 className="text-base font-semibold text-[var(--text)]">
+            Test Sohbeti
+          </h3>
+        </div>
+        {conversation && messages.length > 0 && (
+          <button
+            type="button"
+            onClick={() => {
+              void handleReset()
+            }}
+            disabled={isStreaming}
+            className="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            <RotateCcw size={12} />
+            Sıfırla
+          </button>
+        )}
       </div>
       <p className="text-sm text-[var(--text-muted)] mb-4">
         Botunla konuşarak nasıl cevap verdiğini test edebilirsin.

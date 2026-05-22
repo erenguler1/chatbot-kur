@@ -4,7 +4,7 @@ import { buildSystemPrompt } from './_prompt.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'content-type',
+  'Access-Control-Allow-Headers': 'content-type, apikey',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 

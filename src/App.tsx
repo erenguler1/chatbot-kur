@@ -11,6 +11,7 @@ import { BotSettings } from './pages/BotSettings'
 import { BotQA } from './pages/BotQA'
 import { BotPrompt } from './pages/BotPrompt'
 import { BotTest } from './pages/BotTest'
+import { Widget } from './pages/Widget'
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/widget/:botId" element={<Widget />} />
           <Route
             path="/"
             element={

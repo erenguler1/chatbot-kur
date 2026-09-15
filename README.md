@@ -84,6 +84,15 @@ Bu, Faz 1 MVP sürümüdür. Aktif geliştirme devam etmektedir.
    ```bash
    npm run dev
    ```
+### Deploy Notu
+
+`vercel.json` dosyası SPA (single-page app) fallback için **zorunludur** — siliyor veya değiştirmiyorsun. Olmadan `/dashboard`, `/bots/xxx` gibi URL'lere hard refresh atınca Vercel 404 döner. İçeriği:
+
+```json
+{ "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }] }
+```
+
+Bu React Router'ın client-side routing'ini Vercel'e "her URL'i `index.html`'e yolla" diye söyler; sonrası React'in işi.
 
 ## Embed Kullanımı
 

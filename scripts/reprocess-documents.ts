@@ -36,12 +36,20 @@ for (const doc of stale) {
     console.log(`  would reprocess ${label}`)
     continue
   }
-  const r = await fetch(`${URL_}/functions/v1/embed-document`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ reprocess: doc.id }),
-  })
-  const body = await r.json()
+  // Retries 5xx (e.g. Voyage 429 on accounts without a payment method: 3 req/min).
+  let r: Response
+  let body: Record<string, unknown>
+  for (let attempt = 1; ; attempt++) {
+    r = await fetch(`${URL_}/functions/v1/embed-document`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ reprocess: doc.id }),
+    })
+    body = await r.json()
+    if (r.ok || r.status < 500 || attempt >= 4) break
+    console.log(`  retry ${label} in 30s (HTTP ${r.status})`)
+    await new Promise((res) => setTimeout(res, 30_000))
+  }
   if (r.ok) {
     console.log(`  ok   ${label} -> ${body.chunks_created} parça`)
   } else {

@@ -10,7 +10,7 @@ Bu dosya, ChatBotKur projesi üzerinde çalışan AI agent'ların (Claude Code, 
 - **Canlı:** https://chatbot-kur.vercel.app
 - **Repo:** github.com/erenguler1/chatbot-kur (private)
 - **Faz 1:** Tamamlandı (Mayıs 2026, `faz-1-v1.0` tag)
-- **Faz 2:** Devam ediyor — RAG (v0.1 canlıda, `week-2-rag-v0.1` tag), sırada Tool Use, Image, Voice, WhatsApp, MCP
+- **Faz 2:** Devam ediyor — RAG (v0.2 canlıda: bölüm bazlı parçalama + PDF), sırada Tool Use, Image, Voice, WhatsApp, MCP
 
 ## Teknoloji Yığını (Faz 1'de kilitlendi)
 
@@ -24,8 +24,9 @@ Bu dosya, ChatBotKur projesi üzerinde çalışan AI agent'ların (Claude Code, 
 
 ## Veritabanı — Gerçek Şema
 
-Tablolar: `bots`, `qa_pairs`, `conversations`, `messages`, `documents` (RAG, parça başına bir satır)
-View: `document_uploads` (security_invoker; Belgeler sekmesi listesi). RPC: `match_documents` (RAG araması).
+Tablolar: `bots`, `qa_pairs`, `conversations`, `messages`, `document_sources` (RAG: yüklemenin ORİJİNAL metni, türü, chunker'ı), `documents` (RAG: parça başına bir satır, `upload_id` → `document_sources.id`)
+View: `document_uploads` (security_invoker; Belgeler sekmesi listesi, `document_sources`'tan okur). RPC: `match_documents` (RAG araması).
+Belge silme: `document_sources.deleted_at` set edilir; trigger parçaları da soft-delete eder (018).
 
 **Migration'lar `supabase db push` ile uygulanır** (Dashboard SQL Editor artık KULLANILMIYOR):
 - 001–013 elle çalıştırılmıştı; uzak geçmişe `supabase migration repair --status applied` ile işlendi. 014+ push ile geldi.
@@ -54,11 +55,12 @@ View: `document_uploads` (security_invoker; Belgeler sekmesi listesi). RPC: `mat
 - **`chat/`** — authenticated streaming chat. JWT verify.
 - **`public-chat/`** — anonim widget streaming chat. `--no-verify-jwt` flag ile deploy. service_role ile RLS bypass.
 - **`public-get-messages/`** — anonim history endpoint. `--no-verify-jwt`. Kolonları açıkça seçer (`messages.sources` müşteriye gitmez).
-- **`embed-document/`** (Faz 2) — JWT ile; bot sahipliğini doğrular, metni parçalar, Voyage ile embed eder, `documents`'a yazar. Her yükleme tek `upload_id` alır.
+- **`embed-document/`** (Faz 2) — JWT ile; bot sahipliğini doğrular, orijinal metni `document_sources`'a, parçaları `documents`'a yazar. `{ reprocess: upload_id }` modu belgeyi orijinal metinden güncel chunker ile yeniden parçalar (bot sahibi veya service_role JWT'si; admin kontrolü JWT `role` claim'iyle — fonksiyon `--no-verify-jwt` ile deploy EDİLMEMELİ, yoksa bu kontrol güvensiz olur).
 - **`_shared/`** — deploy edilmez, fonksiyonlar import eder (kod tekrarı YOK):
   - `prompt.ts` — system prompt (chat + public-chat ortak)
   - `retrieval.ts` — RAG araması (`retrieveDocuments`, eşik, `sourcesForAnswer`)
-  - `voyage.ts` — Voyage client (model sabiti burada)
+  - `voyage.ts` — Voyage client (model sabiti burada; 128'lik batch'ler)
+  - `chunking.ts` — parçalama (`chunkDocument`, `CHUNKER_ID`)
   - Testler: `cd supabase/functions && deno test _shared/`
 
 **Kritik:** Public Edge Function'larda CORS preflight'ta `Access-Control-Allow-Headers`'a `apikey` eklemek zorunlu — yoksa browser preflight reddeder.
@@ -72,10 +74,14 @@ supabase functions deploy embed-document
 ```
 `_shared/` değişirse onu kullanan TÜM fonksiyonları yeniden deploy et (chat, public-chat, embed-document).
 
-## RAG (Faz 2, v0.1)
+## RAG (Faz 2, v0.2)
 
-- **Akış:** soru → Voyage `input_type: "query"` → `match_documents` (aynı botun en yakın 5 parçası) → benzerliği **0,35** altındakiler atılır → prompt'a eklenir.
-- **Parçalama:** 400 kelime, 50 kelime örtüşme (`embed-document`). Metin sınırı 200.000 karakter (frontend `MAX_DOCUMENT_CHARS` ile aynı).
+- **Akış:** soru → Voyage `input_type: "query"` → `match_documents` (aynı botun en yakın 5 parçası) → benzerliği **0,40** altındakiler atılır → prompt'a eklenir.
+- **Parçalama (`section-30`):** başlıklar (BÜYÜK HARF, `##`, `1. Başlık`, `Başlık:`) bölüm açar; belge başlığı her parçaya önek olur ("Makas Kuaför › Erkek"); cümleler ve liste/fiyat satırları 30 kelimeye kadar paketlenir. Metin sınırı 200.000 karakter (frontend `MAX_DOCUMENT_CHARS` ile aynı).
+- **Yöntem/eşik nasıl seçildi:** `scripts/rag-eval/` (Türkçe kafe/kuaför/iade metinleri, 36 alakalı + 106 alakasız/başka işletme sorusu). Sonuç: section-30 @0,40 → 35/36 isabet, 0 yanlış eşleşme; v0.1 (400/50 @0,35) → 24/36.
+- **Kalibrasyon yeniden gerekirse** (model, chunker veya prompt dili değişince): `scripts/test-users.sh create` → `supabase functions deploy rag-eval` → `deno run -A scripts/rag-eval/eval.ts` → `supabase functions delete rag-eval` (silindiğini `functions list` + 404 ile doğrula) → `scripts/test-users.sh cleanup`. rag-eval sadece test kullanıcılarına açık; canlıda BIRAKMA.
+- **Chunker değişince:** `CHUNKER_ID`'yi değiştir, embed-document'i deploy et, `deno run -A scripts/reprocess-documents.ts` (önce `--dry`) ile kayıtlı belgeleri yeniden işle.
+- **PDF:** metin tarayıcıda çıkarılır (`src/lib/pdfText.ts`, pdfjs-dist, sadece PDF seçilince yüklenir). Sınır 10 MB / 100 sayfa. Taranmış/şifreli/bozuk PDF'te Türkçe hata. OCR yok. Dosyanın kendisi saklanmaz, sadece çıkan metin (`source_type = 'pdf'`).
 - **Öncelik:** Q&A çiftleri öncelikli, belgeler ek kaynak; çelişirse Q&A geçerli; ikisinde de yoksa `no_match_message` (uydurma yok).
 - **Prompt injection:** belge içeriği `<belgeler><belge kaynak="...">` içinde "VERİ" olarak verilir, etiketler kaçırılır. Bu koruma `_shared/prompt_test.ts`'te test ediliyor; bozma.
 - **İzolasyon:** `match_documents` her zaman `p_bot_id` ile filtreler. `chat` kullanıcı JWT'si ile çağırır (RLS de geçerli), `public-chat` service_role ile — orada TEK koruma bot filtresidir.
@@ -83,8 +89,8 @@ supabase functions deploy embed-document
 - **Kaynaklar:** `messages.sources` (text[]); bot "bilmiyorum" dediyse boş. Test Sohbeti'nde "Bakılan belgeler" olarak gösterilir.
 - **Teşhis:** `chat` cevabında `Server-Timing: retrieval;dur=<ms>;desc="<skorlar veya hata>"` header'ı var (sadece bot sahibi; public-chat'te YOK).
 - **Gecikme:** belgeli botta arama ~300–900 ms (medyan ~580 ms), belgesiz botta ~0.
-- **Model değişirse:** tüm belgeler yeniden embed edilmeli ve eşik yeniden kalibre edilmeli (alakalı/alakasız soru setiyle skorları ölç). voyage-3/3.5 Voyage'ın 200M ücretsiz token kapsamında DEĞİL; voyage-4 kapsamda.
-- **Voyage limiti:** hesapta ödeme yöntemi yoksa dakikada 3 istek (429). Testleri buna göre yavaşlat.
+- **Model değişirse:** tüm belgeler yeniden embed edilmeli (reprocess betiği) ve eşik rag-eval ile yeniden kalibre edilmeli. voyage-3/3.5 Voyage'ın 200M ücretsiz token kapsamında DEĞİL; voyage-4 kapsamda.
+- **Voyage limiti:** hesapta ödeme yöntemi yoksa dakikada 3 istek / 10K token (429). Testleri buna göre yavaşlat; rag-eval ve reprocess betikleri 429'da bekleyip tekrar dener.
 
 ## Test ve Geri Dönüş
 
@@ -151,6 +157,10 @@ Yoksa hard refresh 404 verir.
 4. `hnsw.iterative_scan` fonksiyon seviyesinde `SET` ile ayarlanamıyor → fonksiyon gövdesinde `set_config(..., true)` (015)
 5. Edge Function hata yanıtlarında CORS header yoktu → tarayıcı gerçek hatayı göremez; TÜM yanıtlara corsHeaders ekle, `x-client-info`'yu Allow-Headers'a koy
 6. Voyage 429 (ödeme yöntemi yok) → arama sessizce düşüyordu; `Server-Timing` desc'inde hata görünür
+7. v0.1 orijinal metni saklamıyordu (parçalarda satır sonları kayıp) → yeniden parçalama imkânsızdı → `document_sources` (018)
+8. Edge Function'da `SUPABASE_SERVICE_ROLE_KEY` env'i, CLI'nın verdiği legacy service_role JWT'siyle aynı string DEĞİL → admin kontrolünü string karşılaştırmasıyla yapma
+9. Küçük parçalarla belge başına ~1000 parça → Voyage (128), insert (200) ve `.in("id", ...)` delete (100) batch'lenmeli; uzun `in` listesi URL sınırını aşar
+10. PDF satır kaydırması: rakam içeren kısa satır fiyat satırı sanılıyordu ("7 iş / günü") → küçük harfle devam eden satır paragrafın devamı sayılır
 
 ## TypeScript Kuralları
 

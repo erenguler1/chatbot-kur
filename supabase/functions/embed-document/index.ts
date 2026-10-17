@@ -37,6 +37,20 @@ interface EmbedRequest {
   reprocess?: string;
 }
 
+// The platform verifies the JWT signature before the function runs (deployed
+// WITHOUT --no-verify-jwt), so reading the role claim is safe here. Comparing
+// with SUPABASE_SERVICE_ROLE_KEY doesn't work: the env key and the legacy
+// service_role JWT callers use can be different strings.
+function jwtRole(authHeader: string): string | null {
+  try {
+    const payload = authHeader.replace(/^Bearer\s+/i, "").split(".")[1];
+    const json = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
+    return JSON.parse(json).role ?? null;
+  } catch {
+    return null;
+  }
+}
+
 const NO_SESSION = "Oturum bulunamadı. Lütfen tekrar giriş yapın.";
 const NO_BOT = "Bot bulunamadı veya bu bota erişim yetkiniz yok.";
 
@@ -56,7 +70,7 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
-    const isAdmin = authHeader === `Bearer ${supabaseServiceKey}`;
+    const isAdmin = jwtRole(authHeader) === "service_role";
 
     // Bot ownership check through the user's own JWT (RLS on bots).
     const userOwnsBot = async (botId: string): Promise<boolean | null> => {

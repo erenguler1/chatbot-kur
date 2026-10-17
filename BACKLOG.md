@@ -39,11 +39,14 @@
 
 Faz 1 çalışıyor; Faz 2 üstüne kalite katar. Sırası kullanıcı geri bildirimine göre değişebilir.
 
-### RAG / Belgeler (Hafta 2 v0.1'den ertelenenler)
-- [ ] PDF yükleme (metin çıkarma; taranmış PDF için OCR ayrı değerlendirilmeli)
+### RAG / Belgeler
+- [x] PDF yükleme — metin tabanlı (v0.2)
+- [x] Kısa/çok konulu metinlerde parçalama — section-30, eşik 0,40 (v0.2; "glutensiz" 0,26 → 0,45)
+- [ ] Taranmış PDF için OCR
 - [ ] URL'den içerik çekme (sayfa metnini indirip belge olarak ekleme)
-- [ ] Kısa/çok konulu metinlerde 400 kelimelik parça büyük kalıyor (ör. "glutensiz" sorusu 0,26 skorla eşik altında); daha küçük parça veya paragraf bazlı bölmeyi ölç
-- [ ] Belge düzenleme (şimdilik sil + yeniden ekle)
+- [ ] Belge düzenleme (şimdilik sil + yeniden ekle; orijinal metin artık saklandığı için kolaylaştı)
+- [ ] Eş anlamlı ifade eşleşmesi: "Geç kalırsam ne olur?" ↔ "gecikmelerde" (0,379, eşik altı); sorgu genişletme/yeniden yazma ölçülebilir
+- [ ] Eval setini büyüt (gerçek müşteri soruları geldikçe); şu an 36 + 106 soru, eşik payı dar (en yüksek yanlış 0,39 / eşik 0,40)
 
 ### Kalite ve Eval
 - [ ] Eval set'leri (bot başına test soruları, otomatik scoring)

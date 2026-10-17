@@ -15,7 +15,8 @@
 --    kotu olur. hnsw veri gerektirmez, sonradan eklenen satirlarla da dogru
 --    calisir.
 --
--- Onkosul: 012, 013. Dashboard SQL Editor'da calistirilir.
+-- Onkosul: 012, 013. pgvector "extensions" semasinda; operator class semayla
+-- yazildi cunku db push bos search_path ile calisir.
 -- =============================================================================
 
 -- 1) updated_at kolonu + trigger
@@ -32,4 +33,4 @@ CREATE TRIGGER set_documents_updated_at
 -- 2) ivfflat -> hnsw (cosine)
 DROP INDEX IF EXISTS public.idx_documents_embedding;
 CREATE INDEX idx_documents_embedding ON public.documents
-  USING hnsw (embedding vector_cosine_ops);
+  USING hnsw (embedding extensions.vector_cosine_ops);

@@ -1,7 +1,10 @@
 // Voyage AI embeddings client, shared by embed-document and chat functions.
 
 const VOYAGE_API_URL = 'https://api.voyageai.com/v1/embeddings'
-const VOYAGE_MODEL = 'voyage-3' // 1024 dims, must match documents.embedding
+// voyage-4: current general-purpose multilingual model, covered by the 200M
+// free tokens (voyage-3/3.5 are not). Default 1024 dims, must match
+// documents.embedding. Changing the model requires re-embedding all documents.
+const VOYAGE_MODEL = 'voyage-4'
 
 interface VoyageResponse {
   data: Array<{ embedding: number[]; index: number }>

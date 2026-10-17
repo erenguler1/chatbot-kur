@@ -4,10 +4,11 @@ import type { SupabaseClient } from 'npm:@supabase/supabase-js'
 import { getEmbeddings } from './voyage.ts'
 
 const MATCH_COUNT = 5
-// Cosine similarity floor for voyage-3 query/document pairs; chunks below it
+// Cosine similarity floor for voyage-4 query/document pairs; chunks below it
 // are treated as unrelated. Calibrated on Turkish cafe data: on-topic questions
-// scored 0.37-0.47, off-topic ones 0.18-0.30.
-export const MIN_SIMILARITY = 0.3
+// scored 0.40-0.54 (top chunk), off-topic ones 0.26-0.33. Recalibrate if the
+// embedding model changes.
+export const MIN_SIMILARITY = 0.35
 
 export interface DocumentChunk {
   id: string

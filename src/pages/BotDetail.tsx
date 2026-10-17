@@ -17,6 +17,7 @@ const SECONDARY_BTN_CLASS =
 const TABS = [
   { to: 'settings', label: 'Ayarlar' },
   { to: 'qa', label: 'Sorular & Cevaplar' },
+  { to: 'documents', label: 'Belgeler' },
   { to: 'prompt', label: 'Prompt Önizleme' },
   { to: 'test', label: 'Test Sohbeti' },
 ]

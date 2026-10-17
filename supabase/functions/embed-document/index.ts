@@ -102,7 +102,10 @@ Deno.serve(async (req) => {
     
     // Insert into DB using service_role (bypasses RLS, we already verified ownership)
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+    // All chunks of one upload share an id so the UI can list/delete it as one.
+    const upload_id = crypto.randomUUID();
     const rows = chunks.map((content, i) => ({
+      upload_id,
       bot_id,
       content,
       embedding: embeddings[i],
@@ -120,6 +123,7 @@ Deno.serve(async (req) => {
     
     return json({
       success: true,
+      upload_id,
       chunks_created: chunks.length,
       source_name: source_name || null,
     }, 200);

@@ -3,9 +3,8 @@
 // Auth: Requires JWT (user must own the bot).
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { getEmbeddings } from "../_shared/voyage.ts";
 
-const VOYAGE_API_URL = "https://api.voyageai.com/v1/embeddings";
-const VOYAGE_MODEL = "voyage-3";
 const CHUNK_SIZE = 400; // words per chunk
 const CHUNK_OVERLAP = 50; // word overlap between chunks
 const MAX_CONTENT_CHARS = 200_000; // keeps one Voyage batch under its 120k token limit
@@ -29,11 +28,6 @@ interface EmbedRequest {
   source_name?: string;
 }
 
-interface VoyageResponse {
-  data: Array<{ embedding: number[]; index: number }>;
-  usage: { total_tokens: number };
-}
-
 // Split text into overlapping word chunks
 function chunkText(text: string): string[] {
   const words = text.split(/\s+/).filter((w) => w.length > 0);
@@ -48,35 +42,6 @@ function chunkText(text: string): string[] {
   }
   
   return chunks;
-}
-
-// Call Voyage API to get embeddings for multiple texts (batch)
-async function getEmbeddings(texts: string[]): Promise<number[][]> {
-  const voyageKey = Deno.env.get("VOYAGE_API_KEY");
-  if (!voyageKey) throw new Error("VOYAGE_API_KEY not set");
-  
-  const response = await fetch(VOYAGE_API_URL, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${voyageKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: VOYAGE_MODEL,
-      input: texts,
-      input_type: "document", // "document" for setup, "query" for search
-    }),
-  });
-  
-  if (!response.ok) {
-    const err = await response.text();
-    throw new Error(`Voyage API error: ${response.status} ${err}`);
-  }
-  
-  const data: VoyageResponse = await response.json();
-  return data.data
-    .sort((a, b) => a.index - b.index)
-    .map((d) => d.embedding);
 }
 
 Deno.serve(async (req) => {
@@ -133,7 +98,7 @@ Deno.serve(async (req) => {
     }
     
     // Get embeddings from Voyage (batch call)
-    const embeddings = await getEmbeddings(chunks);
+    const embeddings = await getEmbeddings(chunks, "document");
     
     // Insert into DB using service_role (bypasses RLS, we already verified ownership)
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);

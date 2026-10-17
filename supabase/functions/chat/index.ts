@@ -1,6 +1,7 @@
 import Anthropic from 'npm:@anthropic-ai/sdk'
 import { createClient } from 'npm:@supabase/supabase-js'
-import { buildSystemPrompt } from './_prompt.ts'
+import { buildSystemPrompt } from '../_shared/prompt.ts'
+import { retrieveDocuments, sourceNames } from '../_shared/retrieval.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -130,7 +131,9 @@ Deno.serve(async (req: Request) => {
       .slice()
       .reverse()
 
-    const systemPrompt = buildSystemPrompt(bot, qaPairs ?? [])
+    const retrieval = await retrieveDocuments(supabase, botId, trimmedMessage)
+    const sources = sourceNames(retrieval.chunks)
+    const systemPrompt = buildSystemPrompt(bot, qaPairs ?? [], retrieval)
 
     const { error: userMsgError } = await supabase.from('messages').insert({
       conversation_id: conversationId,
@@ -167,8 +170,6 @@ Deno.serve(async (req: Request) => {
     const stream = new ReadableStream<Uint8Array>({
       async start(controller) {
         let assistantContent = ''
-        let inputTokens = 0
-        let outputTokens = 0
 
         try {
           const claudeStream = anthropic.messages.stream({
@@ -190,8 +191,8 @@ Deno.serve(async (req: Request) => {
           }
 
           const finalMessage = await claudeStream.finalMessage()
-          inputTokens = finalMessage.usage.input_tokens
-          outputTokens = finalMessage.usage.output_tokens
+          const inputTokens = finalMessage.usage.input_tokens
+          const outputTokens = finalMessage.usage.output_tokens
 
           if (!assistantContent) {
             controller.enqueue(
@@ -225,6 +226,7 @@ Deno.serve(async (req: Request) => {
               type: 'done',
               input_tokens: inputTokens,
               output_tokens: outputTokens,
+              sources,
             }),
           )
         } catch (err) {

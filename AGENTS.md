@@ -10,7 +10,7 @@ Bu dosya, ChatBotKur projesi üzerinde çalışan AI agent'ların (Claude Code, 
 - **Canlı:** https://chatbot-kur.vercel.app
 - **Repo:** github.com/erenguler1/chatbot-kur (private)
 - **Faz 1:** Tamamlandı (Mayıs 2026, `faz-1-v1.0` tag)
-- **Faz 2:** Devam ediyor — RAG, Tool Use, Image, Voice, WhatsApp, MCP
+- **Faz 2:** Devam ediyor — RAG (v0.1 canlıda, `week-2-rag-v0.1` tag), sırada Tool Use, Image, Voice, WhatsApp, MCP
 
 ## Teknoloji Yığını (Faz 1'de kilitlendi)
 
@@ -19,12 +19,22 @@ Bu dosya, ChatBotKur projesi üzerinde çalışan AI agent'ların (Claude Code, 
 - **Router:** React Router v7
 - **Backend:** Supabase (project ref: ddsaqzfjcisakwfambmv, Frankfurt)
 - **AI:** Anthropic Claude Sonnet 4.5 (`claude-sonnet-4-5-20250929`), streaming SSE
+- **Embeddings (Faz 2):** Voyage AI `voyage-4`, 1024 boyut, pgvector (hnsw, cosine)
 - **Deploy:** Vercel (auto-deploy on push to main)
 
 ## Veritabanı — Gerçek Şema
 
-Tablolar: `bots`, `qa_pairs`, `conversations`, `messages`
-Migration'lar: `supabase/migrations/001` — `011` sırayla, Dashboard SQL Editor'da manuel çalıştırılır.
+Tablolar: `bots`, `qa_pairs`, `conversations`, `messages`, `documents` (RAG, parça başına bir satır)
+View: `document_uploads` (security_invoker; Belgeler sekmesi listesi). RPC: `match_documents` (RAG araması).
+
+**Migration'lar `supabase db push` ile uygulanır** (Dashboard SQL Editor artık KULLANILMIYOR):
+- 001–013 elle çalıştırılmıştı; uzak geçmişe `supabase migration repair --status applied` ile işlendi. 014+ push ile geldi.
+- Yeni migration: `supabase/migrations/NNN_ad.sql` (3 haneli sıra numarası), sonra:
+  1. Dry run: dosyayı `BEGIN; ... ROLLBACK;` arasına alıp `supabase db query --linked -f <dosya>` ile çalıştır.
+  2. `supabase db push --linked --dry-run` → `supabase db push --linked`.
+  3. `supabase migration list --linked` ile local/remote eşleşmesini kontrol et.
+- `db push` boş `search_path` ile çalışır: pgvector `extensions` şemasında, tip/operator class'ı şemayla yaz (`extensions.vector(1024)`, `extensions.vector_cosine_ops`).
+- Okuma amaçlı sorgu: `supabase db query --linked "select ..."` (bazen "login role" timeout verir; tekrar dene).
 
 **KRİTİK RLS PATTERN:**
 - SELECT/UPDATE policy'lerinde `deleted_at IS NULL` filter KOYMA.
@@ -43,7 +53,13 @@ Migration'lar: `supabase/migrations/001` — `011` sırayla, Dashboard SQL Edito
 
 - **`chat/`** — authenticated streaming chat. JWT verify.
 - **`public-chat/`** — anonim widget streaming chat. `--no-verify-jwt` flag ile deploy. service_role ile RLS bypass.
-- **`public-get-messages/`** — anonim history endpoint. `--no-verify-jwt`.
+- **`public-get-messages/`** — anonim history endpoint. `--no-verify-jwt`. Kolonları açıkça seçer (`messages.sources` müşteriye gitmez).
+- **`embed-document/`** (Faz 2) — JWT ile; bot sahipliğini doğrular, metni parçalar, Voyage ile embed eder, `documents`'a yazar. Her yükleme tek `upload_id` alır.
+- **`_shared/`** — deploy edilmez, fonksiyonlar import eder (kod tekrarı YOK):
+  - `prompt.ts` — system prompt (chat + public-chat ortak)
+  - `retrieval.ts` — RAG araması (`retrieveDocuments`, eşik, `sourcesForAnswer`)
+  - `voyage.ts` — Voyage client (model sabiti burada)
+  - Testler: `cd supabase/functions && deno test _shared/`
 
 **Kritik:** Public Edge Function'larda CORS preflight'ta `Access-Control-Allow-Headers`'a `apikey` eklemek zorunlu — yoksa browser preflight reddeder.
 
@@ -52,7 +68,34 @@ Migration'lar: `supabase/migrations/001` — `011` sırayla, Dashboard SQL Edito
 supabase functions deploy chat
 supabase functions deploy public-chat --no-verify-jwt
 supabase functions deploy public-get-messages --no-verify-jwt
+supabase functions deploy embed-document
 ```
+`_shared/` değişirse onu kullanan TÜM fonksiyonları yeniden deploy et (chat, public-chat, embed-document).
+
+## RAG (Faz 2, v0.1)
+
+- **Akış:** soru → Voyage `input_type: "query"` → `match_documents` (aynı botun en yakın 5 parçası) → benzerliği **0,35** altındakiler atılır → prompt'a eklenir.
+- **Parçalama:** 400 kelime, 50 kelime örtüşme (`embed-document`). Metin sınırı 200.000 karakter (frontend `MAX_DOCUMENT_CHARS` ile aynı).
+- **Öncelik:** Q&A çiftleri öncelikli, belgeler ek kaynak; çelişirse Q&A geçerli; ikisinde de yoksa `no_match_message` (uydurma yok).
+- **Prompt injection:** belge içeriği `<belgeler><belge kaynak="...">` içinde "VERİ" olarak verilir, etiketler kaçırılır. Bu koruma `_shared/prompt_test.ts`'te test ediliyor; bozma.
+- **İzolasyon:** `match_documents` her zaman `p_bot_id` ile filtreler. `chat` kullanıcı JWT'si ile çağırır (RLS de geçerli), `public-chat` service_role ile — orada TEK koruma bot filtresidir.
+- **Dayanıklılık:** Voyage/arama hatası sohbeti kesmez, bot sadece Q&A ile cevaplar. Belgesi olmayan botta Voyage hiç çağrılmaz. Arama, diğer DB sorgularıyla paralel çalışır.
+- **Kaynaklar:** `messages.sources` (text[]); bot "bilmiyorum" dediyse boş. Test Sohbeti'nde "Bakılan belgeler" olarak gösterilir.
+- **Teşhis:** `chat` cevabında `Server-Timing: retrieval;dur=<ms>;desc="<skorlar veya hata>"` header'ı var (sadece bot sahibi; public-chat'te YOK).
+- **Gecikme:** belgeli botta arama ~300–900 ms (medyan ~580 ms), belgesiz botta ~0.
+- **Model değişirse:** tüm belgeler yeniden embed edilmeli ve eşik yeniden kalibre edilmeli (alakalı/alakasız soru setiyle skorları ölç). voyage-3/3.5 Voyage'ın 200M ücretsiz token kapsamında DEĞİL; voyage-4 kapsamda.
+- **Voyage limiti:** hesapta ödeme yöntemi yoksa dakikada 3 istek (429). Testleri buna göre yavaşlat.
+
+## Test ve Geri Dönüş
+
+- **Test kullanıcıları:** `scripts/test-users.sh create` → iki kullanıcı (`test-rag-a/b@chatbotkur.test`) + birer bot; bilgiler `scripts/.test-users.env`'de (gitignored). İş bitince `scripts/test-users.sh cleanup` (cascade ile bot/belge/sohbet de silinir, sorguyla doğrular). Gerçek kullanıcı hesabı ASLA kullanma.
+- **Edge Function geri dönüşü:** önceki commit'i ayrı klasöre çıkar ve oradan deploy et:
+  ```bash
+  mkdir -p /tmp/rb && git archive <commit> supabase | tar -x -C /tmp/rb
+  cd /tmp/rb && supabase functions deploy <fn> --project-ref ddsaqzfjcisakwfambmv   # public-*: --no-verify-jwt
+  ```
+- **Frontend geri dönüşü:** Vercel dashboard'da önceki deployment'ı "Promote to Production" (instant rollback).
+- **Migration geri dönüşü:** yeni bir düzeltme migration'ı yaz; uygulanmış migration dosyasını değiştirme.
 
 ## Anthropic API
 
@@ -80,6 +123,7 @@ supabase functions deploy public-get-messages --no-verify-jwt
 - `VITE_SUPABASE_URL=https://ddsaqzfjcisakwfambmv.supabase.co` (**sonda nokta YOK**, Faz 1'de bu yüzden bug yaşandı)
 - `VITE_SUPABASE_ANON_KEY=eyJ...` (**JWT format**, `sb_publishable_` DEĞİL — Faz 1'de bu yüzden bug yaşandı)
 - `ANTHROPIC_API_KEY=sk-ant-...` (**Sadece Supabase secrets'ta**, Vercel'de YOK)
+- `VOYAGE_API_KEY` (**Sadece Supabase secrets'ta**, Vercel'de YOK)
 
 ## Vercel
 
@@ -98,6 +142,15 @@ Yoksa hard refresh 404 verir.
 5. Vercel SPA fallback eksik → `vercel.json` rewrites
 6. RLS UPDATE `WITH CHECK` eksiği → policy yazarken WITH CHECK zorunlu
 7. BotDetail unmount'ta isLoading branch bug'ı → loading kontrolü dikkatli
+
+## Faz 2'de Yakalananlar (RAG)
+
+1. `documents`'ta `updated_at` yokken trigger vardı → her UPDATE (soft delete) patlıyordu → Migration 014
+2. ivfflat boş tabloda kurulmuştu → hnsw'ye geçildi (014)
+3. `db push` boş search_path → `vector_cosine_ops` bulunamadı → operator class'ı `extensions.` ile yaz
+4. `hnsw.iterative_scan` fonksiyon seviyesinde `SET` ile ayarlanamıyor → fonksiyon gövdesinde `set_config(..., true)` (015)
+5. Edge Function hata yanıtlarında CORS header yoktu → tarayıcı gerçek hatayı göremez; TÜM yanıtlara corsHeaders ekle, `x-client-info`'yu Allow-Headers'a koy
+6. Voyage 429 (ödeme yöntemi yok) → arama sessizce düşüyordu; `Server-Timing` desc'inde hata görünür
 
 ## TypeScript Kuralları
 

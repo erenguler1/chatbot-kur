@@ -61,7 +61,7 @@ Bu, Faz 1 MVP sürümüdür. Aktif geliştirme devam etmektedir.
    VITE_SUPABASE_ANON_KEY=eyJ...
    ```
 
-5. `supabase/migrations/` klasöründeki SQL dosyalarını Supabase Dashboard SQL Editor'da sırayla çalıştır (001-011).
+5. Migration'ları uygula: `supabase link --project-ref <ref>` ardından `supabase db push` (001-017).
 
 6. Anthropic API key'i Supabase'e ekle:
 
@@ -118,7 +118,7 @@ chatbot-kur/
 │   ├── lib/                  # supabase client, promptBuilder, ...
 │   └── types/                # TypeScript interfaces
 ├── supabase/
-│   ├── migrations/           # PostgreSQL şema değişiklikleri (001-011)
+│   ├── migrations/           # PostgreSQL şema değişiklikleri (001-017)
 │   └── functions/            # Edge Function'lar
 │       ├── chat/             # Login'li streaming chat
 │       ├── public-chat/      # Anonim streaming chat

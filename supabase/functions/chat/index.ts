@@ -1,7 +1,7 @@
 import Anthropic from 'npm:@anthropic-ai/sdk'
 import { createClient } from 'npm:@supabase/supabase-js'
 import { buildSystemPrompt } from '../_shared/prompt.ts'
-import { retrieveDocuments, sourceNames } from '../_shared/retrieval.ts'
+import { retrieveDocuments, serverTiming, sourceNames } from '../_shared/retrieval.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -93,6 +93,9 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ error: 'Bot bulunamadı veya erişim yok' }, 404)
     }
 
+    // Runs in parallel with the queries below; never rejects.
+    const retrievalPromise = retrieveDocuments(supabase, botId, trimmedMessage)
+
     const { data: qaPairs, error: qaError } = await supabase
       .from('qa_pairs')
       .select('*')
@@ -131,7 +134,7 @@ Deno.serve(async (req: Request) => {
       .slice()
       .reverse()
 
-    const retrieval = await retrieveDocuments(supabase, botId, trimmedMessage)
+    const retrieval = await retrievalPromise
     const sources = sourceNames(retrieval.chunks)
     const systemPrompt = buildSystemPrompt(bot, qaPairs ?? [], retrieval)
 
@@ -245,6 +248,7 @@ Deno.serve(async (req: Request) => {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
         'Connection': 'keep-alive',
+        'Server-Timing': serverTiming(retrieval),
       },
     })
   } catch (error) {

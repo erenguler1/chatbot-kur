@@ -12,7 +12,8 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 import { getEmbeddings } from "../_shared/voyage.ts";
 import { CHUNKER_ID, chunkDocument } from "../_shared/chunking.ts";
 
-const MAX_CONTENT_CHARS = 200_000; // keeps one Voyage batch under its 120k token limit
+const MAX_CONTENT_CHARS = 200_000; // ~1000 section-30 chunks at most
+const INSERT_BATCH = 200; // keeps each PostgREST insert (1024-dim vectors) small
 const SOURCE_TYPES = ["text", "pdf"];
 
 const corsHeaders = {
@@ -73,6 +74,21 @@ Deno.serve(async (req) => {
       return !botError && !!bot;
     };
 
+    const insertChunks = async (rows: Record<string, unknown>[]) => {
+      for (let i = 0; i < rows.length; i += INSERT_BATCH) {
+        const { error } = await adminClient.from("documents").insert(rows.slice(i, i + INSERT_BATCH));
+        if (error) throw error;
+      }
+    };
+
+    // Chunk ids go in the query string; batches keep the URL short.
+    const deleteChunks = async (ids: string[]) => {
+      for (let i = 0; i < ids.length; i += 100) {
+        const { error } = await adminClient.from("documents").delete().in("id", ids.slice(i, i + 100));
+        if (error) throw error;
+      }
+    };
+
     const embedChunks = async (uploadId: string, botId: string, sourceName: string | null, text: string) => {
       const chunks = chunkDocument(text);
       if (chunks.length === 0) return null;
@@ -111,13 +127,18 @@ Deno.serve(async (req) => {
       const { data: oldRows, error: oldError } = await adminClient
         .from("documents").select("id").eq("upload_id", source.id);
       if (oldError) throw oldError;
-      const { error: insertError } = await adminClient.from("documents").insert(rows);
-      if (insertError) throw insertError;
-      const oldIds = (oldRows ?? []).map((r) => r.id);
-      if (oldIds.length > 0) {
-        const { error: deleteError } = await adminClient.from("documents").delete().in("id", oldIds);
-        if (deleteError) throw deleteError;
+      const newIds = new Set<string>();
+      try {
+        await insertChunks(rows);
+      } catch (err) {
+        // Drop a partial new set; the old chunks stay searchable.
+        const { data: all } = await adminClient.from("documents").select("id").eq("upload_id", source.id);
+        const oldSet = new Set((oldRows ?? []).map((r) => r.id));
+        for (const r of all ?? []) if (!oldSet.has(r.id)) newIds.add(r.id);
+        await deleteChunks([...newIds]);
+        throw err;
       }
+      await deleteChunks((oldRows ?? []).map((r) => r.id));
       const { error: updateError } = await adminClient
         .from("document_sources")
         .update({ chunker: CHUNKER_ID, chunk_count: rows.length })
@@ -164,10 +185,12 @@ Deno.serve(async (req) => {
     });
     if (sourceError) throw sourceError;
 
-    const { error: insertError } = await adminClient.from("documents").insert(rows);
-    if (insertError) {
+    try {
+      await insertChunks(rows);
+    } catch (err) {
+      // Cascades to any chunks already inserted.
       await adminClient.from("document_sources").delete().eq("id", upload_id);
-      throw insertError;
+      throw err;
     }
 
     return json({

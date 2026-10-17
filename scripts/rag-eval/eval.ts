@@ -22,7 +22,11 @@ const STRATEGIES: Record<string, (t: string) => Chunk[]> = {
   'section-150': (t) => sectionChunks(t, 150),
   'section-80': (t) => sectionChunks(t, 80),
   'section-40': (t) => sectionChunks(t, 40),
+  'section-30': (t) => sectionChunks(t, 30),
+  'section-25': (t) => sectionChunks(t, 25),
 }
+// ONLY=section-30,section-25 runs a subset (saves Voyage calls).
+const only = Deno.env.get('ONLY')?.split(',')
 const TOP_K = 5
 const DOMAIN: Record<string, string> = { 'kafe-kisa': 'kafe', 'kafe-menu': 'kafe', kuafor: 'kuafor', iade: 'iade' }
 
@@ -33,17 +37,34 @@ const env = Object.fromEntries(
 )
 const URL_ = 'https://ddsaqzfjcisakwfambmv.supabase.co/functions/v1/rag-eval'
 
+// Voyage accounts without a payment method get 3 requests / 10K tokens per
+// minute: space calls out and wait out 429s.
+const PACE_MS = Number(Deno.env.get('PACE_MS') ?? 21_000)
+let lastCall = 0
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
 async function embed(texts: string[], input_type: 'document' | 'query'): Promise<number[][]> {
   const out: number[][] = []
   for (let i = 0; i < texts.length; i += 100) {
-    const res = await fetch(URL_, {
-      method: 'POST',
-      headers: { apikey: env.ANON, Authorization: `Bearer ${env.TOK_A}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ texts: texts.slice(i, i + 100), input_type }),
-    })
-    const body = await res.json()
-    if (!res.ok) throw new Error(`rag-eval ${res.status}: ${JSON.stringify(body)}`)
-    out.push(...body.embeddings)
+    for (let attempt = 1; ; attempt++) {
+      await sleep(Math.max(0, lastCall + PACE_MS - Date.now()))
+      lastCall = Date.now()
+      const res = await fetch(URL_, {
+        method: 'POST',
+        headers: { apikey: env.ANON, Authorization: `Bearer ${env.TOK_A}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ texts: texts.slice(i, i + 100), input_type }),
+      })
+      const body = await res.json()
+      if (res.ok) {
+        out.push(...body.embeddings)
+        break
+      }
+      if (attempt >= 6 || !JSON.stringify(body).includes('429')) {
+        throw new Error(`rag-eval ${res.status}: ${JSON.stringify(body).slice(0, 300)}`)
+      }
+      console.error(`  429, retrying (${attempt})`)
+      await sleep(30_000)
+    }
   }
   return out
 }
@@ -67,7 +88,7 @@ const queryVecs = dry ? [] : await embed(queryTexts, 'query')
 const qv = new Map(queryTexts.map((t, i) => [t, queryVecs[i]]))
 
 const rows: string[] = []
-for (const [name, chunker] of Object.entries(STRATEGIES)) {
+for (const [name, chunker] of Object.entries(STRATEGIES).filter(([n]) => !only || only.includes(n))) {
   const chunks = DOCS.map((d) => ({ doc: d.id, chunks: chunker(d.text) }))
   const counts = chunks.map((c) => `${c.doc}:${c.chunks.length}`).join(' ')
   if (dry) { console.log(name, counts); continue }
@@ -107,7 +128,9 @@ for (const [name, chunker] of Object.entries(STRATEGIES)) {
     `  negatives max ${r3(maxNeg)} (${neg.sort((a, b) => b.s - a.s).slice(0, 3).map((n) => `${n.doc}:"${n.q}" ${r3(n.s)}`).join(', ')})\n` +
     `  zero-FP threshold ${t0}: recall ${r3(recallAt(t0))}  | at 0.35: recall ${r3(recallAt(0.35))} fp ${r3(fpAt(0.35))}` +
     ` | at 0.40: recall ${r3(recallAt(0.4))} fp ${r3(fpAt(0.4))} | at 0.45: recall ${r3(recallAt(0.45))} fp ${r3(fpAt(0.45))}\n` +
-    `  misses at ${t0}: ${misses.join(', ') || '-'}`,
+    `  misses at ${t0}: ${misses.join(', ') || '-'}\n` +
+    `  sweep (threshold: recall/fp): ${[0.25, 0.3, 0.35, 0.4, 0.45, 0.5].map((t) => `${t}: ${r3(recallAt(t))}/${r3(fpAt(t))}`).join('  ')}\n` +
+    `  negatives n=${neg.length}, positives n=${pos.length}`,
   )
 }
 console.log(rows.join('\n'))

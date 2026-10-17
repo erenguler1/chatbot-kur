@@ -138,11 +138,13 @@ export function sectionChunks(text: string, maxWords: number): Chunk[] {
   return chunks
 }
 
-// Strategy for new uploads (chosen with scripts/rag-eval). Changing it means
-// bumping CHUNKER_ID and re-running reprocess (scripts/reprocess-documents.ts)
-// so stored documents are re-chunked from their original text.
-export const CHUNKER_ID = 'section-80'
+// Strategy for new uploads, chosen with scripts/rag-eval (RAG v0.2): section
+// chunks of at most 30 words caught 35/36 on-topic questions with no false
+// matches at MIN_SIMILARITY 0.40; v0.1's 400-word window caught 24/36 at its
+// 0.35. Changing it means bumping CHUNKER_ID, re-running the eval for the
+// threshold, and scripts/reprocess-documents.ts for stored documents.
+export const CHUNKER_ID = 'section-30'
 
 export function chunkDocument(text: string): string[] {
-  return sectionChunks(text, 80).map((c) => c.content)
+  return sectionChunks(text, 30).map((c) => c.content)
 }

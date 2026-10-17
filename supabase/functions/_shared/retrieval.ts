@@ -80,6 +80,13 @@ export function serverTiming(r: RetrievalResult): string {
 }
 
 // Unique source names of the chunks given to the model, in relevance order.
-export function sourceNames(chunks: DocumentChunk[]): string[] {
+// Empty when the bot answered with its no-match message: the chunks were
+// looked at but didn't answer the question, so citing them would mislead.
+export function sourcesForAnswer(
+  chunks: DocumentChunk[],
+  answer: string,
+  noMatchMessage: string,
+): string[] {
+  if (answer.includes(noMatchMessage.trim())) return []
   return [...new Set(chunks.map((c) => c.source_name ?? 'Adsız belge'))]
 }

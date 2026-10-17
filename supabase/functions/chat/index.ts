@@ -1,7 +1,7 @@
 import Anthropic from 'npm:@anthropic-ai/sdk'
 import { createClient } from 'npm:@supabase/supabase-js'
 import { buildSystemPrompt } from '../_shared/prompt.ts'
-import { retrieveDocuments, serverTiming, sourceNames } from '../_shared/retrieval.ts'
+import { retrieveDocuments, serverTiming, sourcesForAnswer } from '../_shared/retrieval.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -135,7 +135,6 @@ Deno.serve(async (req: Request) => {
       .reverse()
 
     const retrieval = await retrievalPromise
-    const sources = sourceNames(retrieval.chunks)
     const systemPrompt = buildSystemPrompt(bot, qaPairs ?? [], retrieval)
 
     const { error: userMsgError } = await supabase.from('messages').insert({
@@ -194,6 +193,11 @@ Deno.serve(async (req: Request) => {
           }
 
           const finalMessage = await claudeStream.finalMessage()
+          const sources = sourcesForAnswer(
+            retrieval.chunks,
+            assistantContent,
+            bot.no_match_message,
+          )
           const inputTokens = finalMessage.usage.input_tokens
           const outputTokens = finalMessage.usage.output_tokens
 
@@ -210,6 +214,7 @@ Deno.serve(async (req: Request) => {
             content: assistantContent,
             input_tokens: inputTokens,
             output_tokens: outputTokens,
+            sources: sources.length > 0 ? sources : null,
           })
 
           if (insertError) {

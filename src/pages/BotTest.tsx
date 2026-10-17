@@ -6,7 +6,7 @@ import {
   type KeyboardEvent,
 } from 'react'
 import { useOutletContext } from 'react-router-dom'
-import { AlertCircle, MessageCircle, RotateCcw, Send } from 'lucide-react'
+import { AlertCircle, FileText, MessageCircle, RotateCcw, Send } from 'lucide-react'
 import { EmptyState } from '../components/EmptyState'
 import { Skeleton } from '../components/Skeleton'
 import { useConversation } from '../hooks/useConversation'
@@ -46,6 +46,12 @@ function MessageBubble({ message }: { message: Message }) {
           </span>
         ) : (
           <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+        )}
+        {!isUser && message.sources && message.sources.length > 0 && (
+          <div className="flex items-start gap-1.5 mt-2 pt-2 border-t border-[var(--border)] text-xs text-[var(--text-muted)]">
+            <FileText size={12} className="mt-0.5 shrink-0" />
+            <span>Bakılan belgeler: {message.sources.join(', ')}</span>
+          </div>
         )}
       </div>
     </div>

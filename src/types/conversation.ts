@@ -17,5 +17,7 @@ export interface Message {
   content: string
   input_tokens: number | null
   output_tokens: number | null
+  // Documents the bot looked at for this answer (null when none were used).
+  sources?: string[] | null
   created_at: string
 }

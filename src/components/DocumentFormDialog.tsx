@@ -1,12 +1,12 @@
 import { useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { FileUp, X } from 'lucide-react'
-import { MAX_DOCUMENT_CHARS } from '../types/document'
+import { MAX_DOCUMENT_CHARS, type DocumentSourceType } from '../types/document'
 
 interface DocumentFormDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSubmit: (content: string, sourceName: string) => Promise<void>
+  onSubmit: (content: string, sourceName: string, sourceType: DocumentSourceType) => Promise<void>
 }
 
 const INPUT_CLASS =
@@ -42,6 +42,8 @@ export function DocumentFormDialog({ open, onOpenChange, onSubmit }: DocumentFor
   const [contentError, setContentError] = useState('')
   const [formError, setFormError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [readingPdf, setReadingPdf] = useState(false)
+  const [sourceType, setSourceType] = useState<DocumentSourceType>('text')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const reset = () => {
@@ -50,10 +52,11 @@ export function DocumentFormDialog({ open, onOpenChange, onSubmit }: DocumentFor
     setNameError('')
     setContentError('')
     setFormError('')
+    setSourceType('text')
   }
 
   const handleOpenChange = (next: boolean) => {
-    if (submitting) return
+    if (submitting || readingPdf) return
     if (!next) reset()
     onOpenChange(next)
   }
@@ -62,16 +65,31 @@ export function DocumentFormDialog({ open, onOpenChange, onSubmit }: DocumentFor
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file) return
-    if (!file.name.toLowerCase().endsWith('.txt')) {
-      setContentError('Şimdilik sadece .txt dosyası yüklenebilir.')
+    const lower = file.name.toLowerCase()
+    const isPdf = lower.endsWith('.pdf')
+    if (!isPdf && !lower.endsWith('.txt')) {
+      setContentError('Sadece .txt ve .pdf dosyaları yüklenebilir.')
       return
     }
+    setContentError('')
+    setReadingPdf(isPdf)
     try {
-      setContent(await readTextFile(file))
-      setContentError('')
+      if (isPdf) {
+        // PDF.js is loaded only when a PDF is picked.
+        const { extractPdfText } = await import('../lib/pdfText')
+        setContent(await extractPdfText(file))
+      } else {
+        setContent(await readTextFile(file))
+      }
+      setSourceType(isPdf ? 'pdf' : 'text')
       if (name.trim().length === 0) setName(file.name.slice(0, MAX_NAME_LENGTH))
-    } catch {
-      setContentError('Dosya okunamadı.')
+    } catch (err) {
+      // PdfTextError messages are written for the user; anything else is unexpected.
+      setContentError(
+        err instanceof Error && err.name === 'PdfTextError' ? err.message : 'Dosya okunamadı.',
+      )
+    } finally {
+      setReadingPdf(false)
     }
   }
 
@@ -107,7 +125,7 @@ export function DocumentFormDialog({ open, onOpenChange, onSubmit }: DocumentFor
 
     setSubmitting(true)
     try {
-      await onSubmit(trimmedContent, trimmedName)
+      await onSubmit(trimmedContent, trimmedName, sourceType)
       reset()
       onOpenChange(false)
     } catch (err) {
@@ -138,8 +156,8 @@ export function DocumentFormDialog({ open, onOpenChange, onSubmit }: DocumentFor
             </Dialog.Close>
           </div>
           <Dialog.Description className="text-sm text-[var(--text-muted)] mt-1 mb-4">
-            Menü, fiyat listesi, çalışma saatleri gibi metinleri ekle. Bot, soru-cevap
-            listesinde bulamadığı bilgileri burada arar.
+            Menü, fiyat listesi, iade politikası gibi metinleri yapıştır ya da .txt / .pdf
+            dosyası seç. Bot, soru-cevap listesinde bulamadığı bilgileri burada arar.
           </Dialog.Description>
 
           <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
@@ -167,16 +185,16 @@ export function DocumentFormDialog({ open, onOpenChange, onSubmit }: DocumentFor
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  disabled={submitting}
+                  disabled={submitting || readingPdf}
                   className="inline-flex items-center gap-1.5 text-xs text-[var(--accent)] hover:text-[var(--accent-hover)] disabled:opacity-60 transition-colors"
                 >
                   <FileUp size={14} />
-                  .txt dosyası seç
+                  {readingPdf ? 'PDF okunuyor...' : '.txt veya .pdf seç'}
                 </button>
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".txt,text/plain"
+                  accept=".txt,.pdf,text/plain,application/pdf"
                   onChange={(e) => void handleFile(e)}
                   className="hidden"
                 />
@@ -185,8 +203,8 @@ export function DocumentFormDialog({ open, onOpenChange, onSubmit }: DocumentFor
                 id="doc-content"
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                placeholder="Metni buraya yapıştır veya .txt dosyası seç"
-                disabled={submitting}
+                placeholder="Metni buraya yapıştır veya .txt / .pdf dosyası seç"
+                disabled={submitting || readingPdf}
                 className={`${TEXTAREA_CLASS} h-56`}
               />
               <div className="flex justify-between gap-2 mt-1">
@@ -205,7 +223,7 @@ export function DocumentFormDialog({ open, onOpenChange, onSubmit }: DocumentFor
                   Vazgeç
                 </button>
               </Dialog.Close>
-              <button type="submit" disabled={submitting} className={PRIMARY_BTN_CLASS}>
+              <button type="submit" disabled={submitting || readingPdf} className={PRIMARY_BTN_CLASS}>
                 {submitting ? 'İşleniyor...' : 'Ekle'}
               </button>
             </div>

@@ -72,10 +72,18 @@ function toSections(text: string): Section[] {
     paragraph = []
   }
 
-  for (const raw of text.replace(/\r\n?/g, '\n').split('\n')) {
-    const line = raw.trim()
+  const lines = text.replace(/\r\n?/g, '\n').split('\n').map((l) => l.trim())
+  // Hard-wrapped prose (PDFs): a line followed by one starting lowercase is
+  // mid-sentence, and a lowercase line continues the open paragraph.
+  const startsLower = (l: string | undefined) => !!l && /^\p{Ll}/u.test(l)
+
+  for (const [i, line] of lines.entries()) {
     if (line.length === 0) {
       flush()
+    } else if (paragraph.length > 0 && startsLower(line)) {
+      paragraph.push(line)
+    } else if (startsLower(lines[i + 1])) {
+      paragraph.push(line)
     } else if (isHeading(line)) {
       flush()
       // The first heading directly followed by another heading is the
@@ -128,4 +136,13 @@ export function sectionChunks(text: string, maxWords: number): Chunk[] {
     emit()
   }
   return chunks
+}
+
+// Strategy for new uploads (chosen with scripts/rag-eval). Changing it means
+// bumping CHUNKER_ID and re-running reprocess (scripts/reprocess-documents.ts)
+// so stored documents are re-chunked from their original text.
+export const CHUNKER_ID = 'section-80'
+
+export function chunkDocument(text: string): string[] {
+  return sectionChunks(text, 80).map((c) => c.content)
 }

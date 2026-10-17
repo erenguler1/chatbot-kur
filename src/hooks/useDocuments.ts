@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import { FunctionsHttpError, type PostgrestError } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
-import type { DocumentUpload } from '../types/document'
+import type { DocumentSourceType, DocumentUpload } from '../types/document'
 
 interface UseDocumentsResult {
   documents: DocumentUpload[]
   isLoading: boolean
   error: PostgrestError | null
   refetch: () => Promise<void>
-  uploadDocument: (content: string, sourceName: string) => Promise<void>
+  uploadDocument: (content: string, sourceName: string, sourceType: DocumentSourceType) => Promise<void>
   deleteDocument: (uploadId: string) => Promise<void>
 }
 
@@ -73,9 +73,9 @@ export function useDocuments(botId: string): UseDocumentsResult {
   }, [botId, applyResult])
 
   const uploadDocument = useCallback(
-    async (content: string, sourceName: string) => {
+    async (content: string, sourceName: string, sourceType: DocumentSourceType) => {
       const { error: invokeError } = await supabase.functions.invoke('embed-document', {
-        body: { bot_id: botId, content, source_name: sourceName },
+        body: { bot_id: botId, content, source_name: sourceName, source_type: sourceType },
       })
       if (invokeError) throw new Error(await functionErrorMessage(invokeError))
       await refetch()
@@ -85,11 +85,12 @@ export function useDocuments(botId: string): UseDocumentsResult {
 
   const deleteDocument = useCallback(
     async (uploadId: string) => {
+      // A trigger soft-deletes the upload's chunks too (migration 018).
       const { error: updateError } = await supabase
-        .from('documents')
+        .from('document_sources')
         .update({ deleted_at: new Date().toISOString() })
         .eq('bot_id', botId)
-        .eq('upload_id', uploadId)
+        .eq('id', uploadId)
       if (updateError) throw new Error('Belge silinemedi. Lütfen tekrar deneyin.')
       await refetch()
     },

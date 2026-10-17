@@ -40,3 +40,13 @@ Deno.test('empty / whitespace input gives no chunks', () => {
   assertEquals(sectionChunks('  \n\n  ', 40), [])
   assertEquals(fixedChunks('', 400, 50), [])
 })
+
+Deno.test('hard-wrapped PDF line with a number is not mistaken for a price line', () => {
+  const text = 'Para İadesi\nOnaylanan iadelerde ödeme kredi kartınıza 7 iş\ngünü içinde yansır. Süre uzayabilir.\nLatte 110 TL'
+  const c = sectionChunks(text, 80)
+  assertEquals(c.length, 1)
+  assertEquals(
+    c[0].content,
+    'Para İadesi\nOnaylanan iadelerde ödeme kredi kartınıza 7 iş günü içinde yansır.\nSüre uzayabilir.\nLatte 110 TL',
+  )
+})

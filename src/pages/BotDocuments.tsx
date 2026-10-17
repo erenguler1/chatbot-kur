@@ -114,6 +114,7 @@ export function BotDocuments() {
                     </p>
                     <p className="text-xs text-[var(--text-dim)] mt-0.5">
                       {formatDate(doc.created_at)} · {doc.chunk_count} parça
+                      {doc.source_type === 'pdf' && ' · PDF'}
                     </p>
                   </div>
                 </div>

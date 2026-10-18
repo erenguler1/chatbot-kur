@@ -342,6 +342,13 @@ Deno.serve(async (req) => {
     };
 
     const crawlDelay = robotsFromText(row.robots_txt).crawlDelay;
+    // Enforced here too, not just by the browser waiting retry_after.
+    // updated_at moves on every claim/progress write.
+    const sinceLast = Date.now() - Date.parse(row.updated_at);
+    if (crawlDelay > 0 && row.next_index > 0 && sinceLast < crawlDelay * 1000) {
+      const wait = Math.ceil((crawlDelay * 1000 - sinceLast) / 1000);
+      return json({ import: await publicRow(row.id), retry_after: wait }, 200);
+    }
     const { data: claimed, error: claimError } = await admin.rpc("claim_site_import_pages", {
       p_import_id: row.id,
       p_count: crawlDelay > 0 ? 1 : PAGES_PER_STEP,

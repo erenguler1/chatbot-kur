@@ -289,7 +289,7 @@ Deno.serve(async (req: Request) => {
 
           // Question text only, masked; never blocks the reply on failure.
           if (isNoMatchAnswer(assistantContent, bot.no_match_message)) {
-            await recordUnanswered(supabase, botId, trimmedMessage)
+            await recordUnanswered(supabase, botId, trimmedMessage, retrieval.queryEmbedding)
           }
 
           controller.enqueue(

@@ -17,7 +17,7 @@ async function fetchQuestions(botId: string) {
   const since = new Date(Date.now() - RETENTION_DAYS * 24 * 3600 * 1000).toISOString()
   return supabase
     .from('unanswered_questions')
-    .select('id, question, created_at')
+    .select('id, question, group_id, created_at')
     .eq('bot_id', botId)
     .is('deleted_at', null)
     .gte('created_at', since)

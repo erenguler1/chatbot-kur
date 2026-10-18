@@ -29,6 +29,9 @@ export interface RetrievalResult {
   ms: number
   scores: number[]
   error?: string
+  // The question's voyage-4 query embedding, when one was computed (bots with
+  // documents); reused to group unanswered questions.
+  queryEmbedding?: number[]
 }
 
 // Never throws: retrieval problems degrade to "no documents" so chat keeps
@@ -67,6 +70,7 @@ export async function retrieveDocuments(
       hasDocuments: rows.length > 0,
       ms: elapsed(),
       scores: rows.map((r) => Math.round(r.similarity * 1000) / 1000),
+      queryEmbedding,
     }
   } catch (err) {
     console.error('Document retrieval failed:', err)

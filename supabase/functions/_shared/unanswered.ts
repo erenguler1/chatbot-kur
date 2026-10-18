@@ -1,8 +1,10 @@
 // Unanswered questions (RAG v0.3): when the bot replies with its no-match
 // message, chat / public-chat store the question text only, with personal
-// data masked. Retention (90 days) is a pg_cron job (migration 020).
+// data masked, grouped by meaning. Retention (90 days) is a pg_cron job
+// (migration 020).
 
 import type { SupabaseClient } from 'npm:@supabase/supabase-js'
+import { getEmbeddings } from './voyage.ts'
 
 const MAX_QUESTION_CHARS = 500
 
@@ -55,12 +57,27 @@ export function maskPersonalData(text: string): string {
     })
 }
 
-// Never throws: a failed write must not break the chat reply.
-export async function recordUnanswered(client: SupabaseClient, botId: string, question: string): Promise<void> {
+// Never throws: a failed write must not break the chat reply. The embedding
+// groups the question with similar open ones (record_unanswered_question,
+// migration 021); without one (no documents) the masked text is embedded.
+export async function recordUnanswered(
+  client: SupabaseClient,
+  botId: string,
+  question: string,
+  queryEmbedding?: number[],
+): Promise<void> {
   const masked = maskPersonalData(question).replace(/\s+/g, ' ').trim().slice(0, MAX_QUESTION_CHARS)
   if (!masked) return
   try {
-    const { error } = await client.from('unanswered_questions').insert({ bot_id: botId, question: masked })
+    let embedding: number[] | null = queryEmbedding ?? null
+    if (!embedding) {
+      embedding = await getEmbeddings([masked], 'query').then(([e]) => e).catch(() => null)
+    }
+    const { error } = await client.rpc('record_unanswered_question', {
+      p_bot_id: botId,
+      p_question: masked,
+      p_embedding: embedding,
+    })
     if (error) console.error('unanswered question not saved:', error.message)
   } catch (err) {
     console.error('unanswered question not saved:', err)

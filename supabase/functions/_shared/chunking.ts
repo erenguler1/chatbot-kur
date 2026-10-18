@@ -50,6 +50,8 @@ const cleanHeading = (line: string): string =>
 
 interface Section {
   heading: string | null
+  // The heading path below the document title ("Akbank Kampüs › Çalışma Saatleri").
+  path: string | null
   // Packing units: single sentences or single list/price lines.
   units: string[]
 }
@@ -61,7 +63,7 @@ const isListLine = (line: string): boolean =>
 const SENTENCE_BREAK = /(?<=[.!?]["')\]]*)\s+/
 
 function toSections(text: string): Section[] {
-  const sections: Section[] = [{ heading: null, units: [] }]
+  const sections: Section[] = [{ heading: null, path: null, units: [] }]
   let title: string | null = null
   let paragraph: string[] = []
   const current = () => sections[sections.length - 1]
@@ -90,12 +92,18 @@ function toSections(text: string): Section[] {
       // document title ("Makas Kuaför Fiyat Listesi"); it prefixes every
       // later section so each chunk keeps the business context.
       const prev = current()
+      let path = cleanHeading(line)
       if (title === null && prev.heading && prev.units.length === 0) {
         title = prev.heading
         sections.pop()
+      } else if (prev.path && prev.units.length === 0) {
+        // A heading with nothing under it before the next one is its parent
+        // ("Akbank Kampüs" / "Çalışma Saatleri:"); dropping it would lose
+        // which branch the hours belong to.
+        path = `${prev.path} › ${path}`
+        sections.pop()
       }
-      const heading = cleanHeading(line)
-      sections.push({ heading: title ? `${title} › ${heading}` : heading, units: [] })
+      sections.push({ heading: title ? `${title} › ${path}` : path, path, units: [] })
     } else if (isListLine(line)) {
       // List items and short price lines ("Latte 110 TL") stand alone so a
       // chunk boundary can fall between any two of them.
@@ -143,7 +151,9 @@ export function sectionChunks(text: string, maxWords: number): Chunk[] {
 // matches at MIN_SIMILARITY 0.40; v0.1's 400-word window caught 24/36 at its
 // 0.35. Changing it means bumping CHUNKER_ID, re-running the eval for the
 // threshold, and scripts/reprocess-documents.ts for stored documents.
-export const CHUNKER_ID = 'section-30'
+// section-30b (v0.3): consecutive headings nest instead of dropping the
+// first; the eval set's chunks are identical, so the threshold stands.
+export const CHUNKER_ID = 'section-30b'
 
 export function chunkDocument(text: string): string[] {
   return sectionChunks(text, 30).map((c) => c.content)

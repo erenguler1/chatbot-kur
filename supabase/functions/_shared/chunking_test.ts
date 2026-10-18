@@ -50,3 +50,12 @@ Deno.test('hard-wrapped PDF line with a number is not mistaken for a price line'
     'Para İadesi\nOnaylanan iadelerde ödeme kredi kartınıza 7 iş günü içinde yansır.\nSüre uzayabilir.\nLatte 110 TL',
   )
 })
+
+Deno.test('consecutive headings nest instead of losing the first (branch name + hours)', () => {
+  const text = 'Mağazalarımız\n\nŞubeler\n\nAkbank Kampüs\nÇalışma Saatleri:\n10:00 - 22:00\n+905302441305\n\nAkçapınar\nÇalışma Saatleri:\n08:00 - 00:00'
+  const c = sectionChunks(text, 30).map((x) => x.content)
+  assertEquals(c, [
+    'Mağazalarımız › Şubeler › Akbank Kampüs › Çalışma Saatleri\n10:00 - 22:00\n+905302441305',
+    'Mağazalarımız › Akçapınar › Çalışma Saatleri\n08:00 - 00:00',
+  ])
+})

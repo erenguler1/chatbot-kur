@@ -32,3 +32,14 @@ Deno.test('isNoMatchAnswer finds the no-match message, ignores an empty one', ()
   assertEquals(isNoMatchAnswer('Latte 110 TL.', msg), false)
   assertEquals(isNoMatchAnswer('Latte 110 TL.', '  '), false)
 })
+
+Deno.test('isNoMatchAnswer catches a reworded no-match message, not normal answers', () => {
+  const msg = 'Bu soruya henüz cevap veremiyorum, ekibimize iletiyorum.'
+  // Seen live: the model paraphrased the message.
+  assertEquals(
+    isNoMatchAnswer('Merhaba! Köpek dostu olup olmadığımız konusunda henüz net bir bilgim yok maalesef. Bu soruyu ekibimize iletiyorum.', msg),
+    true,
+  )
+  assertEquals(isNoMatchAnswer('Rezervasyon talebinizi hemen ekibimize iletiyorum, 08:00-22:00 açığız.', msg), false)
+  assertEquals(isNoMatchAnswer('Her gün 08:00-22:00 arası açığız, bekleriz!', msg), false)
+})

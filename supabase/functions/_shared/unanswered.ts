@@ -6,11 +6,25 @@ import type { SupabaseClient } from 'npm:@supabase/supabase-js'
 
 const MAX_QUESTION_CHARS = 500
 
-// The prompt tells the model to answer with no_match_message verbatim when
-// neither Q&A nor documents cover the question.
+const words = (s: string) =>
+  s.toLocaleLowerCase('tr').split(/[^\p{L}\p{N}]+/u).filter((w) => w.length >= 3)
+
+// Share of the no-match message's words that must appear in the answer.
+const NO_MATCH_OVERLAP = 0.6
+
+// The prompt asks for no_match_message verbatim when neither Q&A nor documents
+// cover the question, but the model sometimes rewords it ("Bu soruyu ekibimize
+// iletiyorum"). So besides an exact hit, most of the message's words matching
+// on a 5-letter stem ("soruya" ~ "soruyu") counts too.
 export function isNoMatchAnswer(answer: string, noMatchMessage: string): boolean {
   const msg = noMatchMessage.trim()
-  return msg.length > 0 && answer.includes(msg)
+  if (msg.length === 0) return false
+  if (answer.includes(msg)) return true
+  const target = words(msg)
+  if (target.length < 3) return false
+  const answerWords = words(answer)
+  const hits = target.filter((t) => answerWords.some((w) => w.startsWith(t.slice(0, 5)))).length
+  return hits / target.length >= NO_MATCH_OVERLAP
 }
 
 const EMAIL = /[\p{L}\p{N}._%+-]+@[\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)*\.\p{L}{2,}/gu

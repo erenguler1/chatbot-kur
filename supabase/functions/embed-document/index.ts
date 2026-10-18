@@ -11,9 +11,9 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { getEmbeddings } from "../_shared/voyage.ts";
 import { CHUNKER_ID, chunkDocument } from "../_shared/chunking.ts";
+import { insertChunks, replaceChunks } from "../_shared/documents.ts";
 
 const MAX_CONTENT_CHARS = 200_000; // ~1000 section-30 chunks at most
-const INSERT_BATCH = 200; // keeps each PostgREST insert (1024-dim vectors) small
 const SOURCE_TYPES = ["text", "pdf"];
 
 const corsHeaders = {
@@ -88,21 +88,6 @@ Deno.serve(async (req) => {
       return !botError && !!bot;
     };
 
-    const insertChunks = async (rows: Record<string, unknown>[]) => {
-      for (let i = 0; i < rows.length; i += INSERT_BATCH) {
-        const { error } = await adminClient.from("documents").insert(rows.slice(i, i + INSERT_BATCH));
-        if (error) throw error;
-      }
-    };
-
-    // Chunk ids go in the query string; batches keep the URL short.
-    const deleteChunks = async (ids: string[]) => {
-      for (let i = 0; i < ids.length; i += 100) {
-        const { error } = await adminClient.from("documents").delete().in("id", ids.slice(i, i + 100));
-        if (error) throw error;
-      }
-    };
-
     const embedChunks = async (uploadId: string, botId: string, sourceName: string | null, text: string) => {
       const chunks = chunkDocument(text);
       if (chunks.length === 0) return null;
@@ -136,23 +121,7 @@ Deno.serve(async (req) => {
       const rows = await embedChunks(source.id, source.bot_id, source.source_name, source.content);
       if (!rows) return json({ error: "Metin boş görünüyor." }, 400);
 
-      // New chunks first, then drop the old ones: a failure leaves the old
-      // chunks searchable instead of none.
-      const { data: oldRows, error: oldError } = await adminClient
-        .from("documents").select("id").eq("upload_id", source.id);
-      if (oldError) throw oldError;
-      const newIds = new Set<string>();
-      try {
-        await insertChunks(rows);
-      } catch (err) {
-        // Drop a partial new set; the old chunks stay searchable.
-        const { data: all } = await adminClient.from("documents").select("id").eq("upload_id", source.id);
-        const oldSet = new Set((oldRows ?? []).map((r) => r.id));
-        for (const r of all ?? []) if (!oldSet.has(r.id)) newIds.add(r.id);
-        await deleteChunks([...newIds]);
-        throw err;
-      }
-      await deleteChunks((oldRows ?? []).map((r) => r.id));
+      await replaceChunks(adminClient, source.id, rows);
       const { error: updateError } = await adminClient
         .from("document_sources")
         .update({ chunker: CHUNKER_ID, chunk_count: rows.length })
@@ -200,7 +169,7 @@ Deno.serve(async (req) => {
     if (sourceError) throw sourceError;
 
     try {
-      await insertChunks(rows);
+      await insertChunks(adminClient, rows);
     } catch (err) {
       // Cascades to any chunks already inserted.
       await adminClient.from("document_sources").delete().eq("id", upload_id);

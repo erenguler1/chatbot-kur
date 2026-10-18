@@ -18,6 +18,8 @@ const DROP_TAGS =
 // out on purpose: a restaurant's menu is content (<nav> is dropped anyway).
 const NOISE = /(cookie|consent|gdpr|cerez|çerez|popup|modal|newsletter|breadcrumb|share|social|skip-link|screen-reader|sr-only|visually-hidden)/i
 
+const LINK_DENSITY = 0.5
+
 const BLOCK = new Set([
   'address', 'article', 'blockquote', 'dd', 'div', 'dl', 'dt', 'fieldset', 'figcaption', 'figure',
   'header', 'footer', 'hr', 'main', 'ol', 'p', 'pre', 'section', 'table', 'tbody', 'thead', 'tfoot', 'ul',
@@ -115,6 +117,19 @@ export function extractPage(html: string): ExtractedPage {
   for (const el of [...doc.body.querySelectorAll('header, footer')]) {
     const e = el as Element
     if (!e.parentElement?.closest('main, article, [role=main]')) e.remove()
+  }
+
+  // Link-heavy blocks are menus and category lists, wherever they sit.
+  // Deepest first, so a content wrapper is judged after its menus are gone.
+  for (const el of [...doc.body.querySelectorAll('ul, ol, div, section, p, td')].reverse()) {
+    const e = el as Element
+    const text = squash(e.textContent).length
+    if (text === 0) continue
+    // A card wrapped in <a> (heading + summary) is content, not a menu.
+    const linked = [...e.querySelectorAll('a')]
+      .filter((a) => !(a as Element).querySelector('h1, h2, h3, h4, h5, h6, p'))
+      .reduce((n, a) => n + squash(a.textContent).length, 0)
+    if (linked / text > LINK_DENSITY) e.remove()
   }
 
   const root =

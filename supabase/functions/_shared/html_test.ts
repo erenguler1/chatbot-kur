@@ -51,3 +51,14 @@ Deno.test('extractPage falls back to body without <main>', () => {
   assert(p.text.includes('taze çekirdeklerle'))
   assert(!p.text.includes('A\n'))
 })
+
+Deno.test('link-heavy blocks (menus without <nav>) are dropped, linked cards are kept', () => {
+  const p = extractPage(`<html><body>
+    <div class="top"><ul><li><a href="/kahve">KAHVE</a></li><li><a href="/cikolata">ÇİKOLATA</a></li></ul></div>
+    <div class="cards"><a href="/haber/1"><h3>Yeni şubemiz açıldı</h3><p>${filler}</p></a></div>
+    <p>${filler} Detaylar için <a href="/iletisim">bize yazın</a>.</p>
+  </body></html>`)
+  assert(!p.text.includes('KAHVE'), p.text)
+  assert(p.text.includes('## Yeni şubemiz açıldı'))
+  assert(p.text.includes('bize yazın'))
+})

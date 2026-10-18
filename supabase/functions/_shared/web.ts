@@ -274,6 +274,11 @@ export function sameSite(a: URL, b: URL): boolean {
   return siteKey(a.hostname) === siteKey(b.hostname)
 }
 
+// Dedupe key: www./non-www and a trailing slash are the same page.
+export function pageKey(url: URL): string {
+  return `${siteKey(url.hostname)}${url.pathname.replace(/\/+$/, '')}${url.search}`
+}
+
 // Files we never treat as pages.
 const NON_PAGE =
   /\.(pdf|jpe?g|png|gif|webp|svg|ico|bmp|tiff?|mp4|webm|mov|avi|mp3|wav|ogg|zip|rar|7z|gz|tar|docx?|xlsx?|pptx?|csv|json|xml|txt|css|js|woff2?|ttf|eot|exe|dmg|apk)$/i

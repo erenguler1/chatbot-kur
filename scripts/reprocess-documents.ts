@@ -4,11 +4,15 @@
 // chunker:
 //
 //   deno run -A scripts/reprocess-documents.ts           # do it
-//   deno run -A scripts/reprocess-documents.ts --dry     # list only
+//   deno run -A scripts/reprocess-documents.ts --dry     # list + chunk diff only
+//
+// Both modes first save the affected documents and their current chunks to
+// scripts/.reprocess-backup-<chunker>-<time>.json (gitignored): the original
+// text stays in document_sources, the backup records what changed.
 //
 // Uses the service_role key (fetched via the Supabase CLI, never printed).
 
-import { CHUNKER_ID } from '../supabase/functions/_shared/chunking.ts'
+import { CHUNKER_ID, chunkDocument } from '../supabase/functions/_shared/chunking.ts'
 
 const REF = 'ddsaqzfjcisakwfambmv'
 const URL_ = `https://${REF}.supabase.co`
@@ -22,20 +26,57 @@ const SR = keys.find((k) => k.name === 'service_role')!.api_key
 const headers = { apikey: SR, Authorization: `Bearer ${SR}`, 'Content-Type': 'application/json' }
 
 const res = await fetch(
-  `${URL_}/rest/v1/document_sources?select=id,source_name,chunker,chunk_count&deleted_at=is.null&chunker=neq.${encodeURIComponent(CHUNKER_ID)}`,
+  `${URL_}/rest/v1/document_sources?select=id,bot_id,source_name,source_type,chunker,chunk_count,content&deleted_at=is.null&chunker=neq.${encodeURIComponent(CHUNKER_ID)}`,
   { headers },
 )
 if (!res.ok) throw new Error(`list failed: ${res.status} ${await res.text()}`)
-const stale: { id: string; source_name: string | null; chunker: string; chunk_count: number }[] = await res.json()
+const stale: {
+  id: string
+  bot_id: string
+  source_name: string | null
+  source_type: string
+  chunker: string
+  chunk_count: number
+  content: string
+}[] = await res.json()
+
+// Current chunks + what the new chunker would produce.
+const backup = []
+let changedDocs = 0
+let changedChunks = 0
+for (const doc of stale) {
+  const r = await fetch(
+    `${URL_}/rest/v1/documents?select=content&upload_id=eq.${doc.id}&deleted_at=is.null&order=chunk_index`,
+    { headers },
+  )
+  if (!r.ok) throw new Error(`chunks failed: ${r.status} ${await r.text()}`)
+  const oldChunks = ((await r.json()) as { content: string }[]).map((c) => c.content)
+  const newChunks = chunkDocument(doc.content)
+  const oldSet = new Set(oldChunks)
+  const newSet = new Set(newChunks)
+  const diff = newChunks.filter((c) => !oldSet.has(c)).length + oldChunks.filter((c) => !newSet.has(c)).length
+  if (diff > 0) changedDocs++
+  changedChunks += diff
+  const { content: _content, ...meta } = doc
+  backup.push({ ...meta, new_chunk_count: newChunks.length, changed_chunks: diff, old_chunks: oldChunks })
+}
+const backupPath = new URL(
+  `./.reprocess-backup-${CHUNKER_ID}-${new Date().toISOString().replace(/[:.]/g, '-')}.json`,
+  import.meta.url,
+).pathname
+Deno.writeTextFileSync(backupPath, JSON.stringify(backup, null, 2))
 
 console.log(`current chunker: ${CHUNKER_ID}; documents to reprocess: ${stale.length}`)
+console.log(`documents whose chunks change: ${changedDocs}; chunks added+removed: ${changedChunks}`)
+console.log(`backup: ${backupPath}`)
+for (const b of backup) {
+  console.log(`  ${b.id.slice(0, 8)} ${b.source_name ?? 'Adsız'} [${b.source_type}] ${b.chunker} ${b.chunk_count} -> ${b.new_chunk_count} parça, ${b.changed_chunks} değişen`)
+}
+if (Deno.args.includes('--dry')) Deno.exit(0)
+
 let failed = 0
 for (const doc of stale) {
   const label = `${doc.id.slice(0, 8)} ${doc.source_name ?? 'Adsız'} (${doc.chunker}, ${doc.chunk_count} parça)`
-  if (Deno.args.includes('--dry')) {
-    console.log(`  would reprocess ${label}`)
-    continue
-  }
   // Retries 5xx (e.g. Voyage 429 on accounts without a payment method: 3 req/min).
   let r: Response
   let body: Record<string, unknown>

@@ -27,3 +27,6 @@ dist-ssr
 *.sw?
 supabase/.temp/
 scripts/.test-users.env
+
+# reprocess-documents.ts backups (real user content)
+scripts/.reprocess-backup-*

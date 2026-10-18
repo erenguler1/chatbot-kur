@@ -2,6 +2,7 @@ import Anthropic from 'npm:@anthropic-ai/sdk'
 import { createClient } from 'npm:@supabase/supabase-js'
 import { buildSystemPrompt } from '../_shared/prompt.ts'
 import { retrieveDocuments, serverTiming, sourcesForAnswer } from '../_shared/retrieval.ts'
+import { isNoMatchAnswer, recordUnanswered } from '../_shared/unanswered.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -228,6 +229,11 @@ Deno.serve(async (req: Request) => {
             .from('conversations')
             .update({ updated_at: new Date().toISOString() })
             .eq('id', conversationId)
+
+          // Question text only, masked; never blocks the reply on failure.
+          if (isNoMatchAnswer(assistantContent, bot.no_match_message)) {
+            await recordUnanswered(supabase, botId, trimmedMessage)
+          }
 
           controller.enqueue(
             sseEvent({

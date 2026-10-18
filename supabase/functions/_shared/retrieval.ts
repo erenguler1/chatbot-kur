@@ -2,6 +2,7 @@
 
 import type { SupabaseClient } from 'npm:@supabase/supabase-js'
 import { getEmbeddings } from './voyage.ts'
+import { isNoMatchAnswer } from './unanswered.ts'
 
 const MATCH_COUNT = 5
 // Cosine similarity floor for voyage-4 query/document pairs with the
@@ -88,6 +89,6 @@ export function sourcesForAnswer(
   answer: string,
   noMatchMessage: string,
 ): string[] {
-  if (answer.includes(noMatchMessage.trim())) return []
+  if (isNoMatchAnswer(answer, noMatchMessage)) return []
   return [...new Set(chunks.map((c) => c.source_name ?? 'Adsız belge'))]
 }

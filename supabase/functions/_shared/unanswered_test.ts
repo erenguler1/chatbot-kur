@@ -1,5 +1,6 @@
 import { assertEquals } from 'jsr:@std/assert@1'
-import { isNoMatchAnswer, maskPersonalData } from './unanswered.ts'
+import type { SupabaseClient } from 'npm:@supabase/supabase-js'
+import { isNoMatchAnswer, maskPersonalData, recordUnanswered } from './unanswered.ts'
 
 Deno.test('maskPersonalData masks phones, e-mails, ID, IBAN and card numbers', () => {
   const cases: [string, string][] = [
@@ -42,4 +43,44 @@ Deno.test('isNoMatchAnswer catches a reworded no-match message, not normal answe
   )
   assertEquals(isNoMatchAnswer('Rezervasyon talebinizi hemen ekibimize iletiyorum, 08:00-22:00 açığız.', msg), false)
   assertEquals(isNoMatchAnswer('Her gün 08:00-22:00 arası açığız, bekleriz!', msg), false)
+})
+
+// Captures what would be embedded and what would be stored.
+function fakes() {
+  const embedded: string[] = []
+  const saved: Record<string, unknown>[] = []
+  const embed = (texts: string[]) => {
+    embedded.push(...texts)
+    return Promise.resolve(texts.map(() => [0.5]))
+  }
+  const client = {
+    rpc: (_fn: string, args: Record<string, unknown>) => {
+      saved.push(args)
+      return Promise.resolve({ error: null })
+    },
+  } as unknown as SupabaseClient
+  return { embedded, saved, embed, client }
+}
+
+Deno.test('recordUnanswered embeds the masked text, never the raw question', async () => {
+  const f = fakes()
+  const raw = 'Köpeğimle gelebilir miyim? Beni 0532 111 22 33\'ten arayın'
+  // The retrieval embedding of the raw text must not be reused here.
+  await recordUnanswered(f.client, 'bot', raw, [9, 9, 9], f.embed)
+  assertEquals(f.embedded, ["Köpeğimle gelebilir miyim? Beni [telefon]'ten arayın"])
+  assertEquals(f.saved[0].p_question, "Köpeğimle gelebilir miyim? Beni [telefon]'ten arayın")
+  assertEquals(f.saved[0].p_embedding, [0.5])
+})
+
+Deno.test('recordUnanswered reuses the retrieval embedding only when nothing was masked', async () => {
+  const f = fakes()
+  await recordUnanswered(f.client, 'bot', '  Otopark var mı? ', [9, 9, 9], f.embed)
+  assertEquals(f.embedded, [])
+  assertEquals(f.saved[0].p_embedding, [9, 9, 9])
+})
+
+Deno.test('recordUnanswered still saves the question if embedding fails', async () => {
+  const f = fakes()
+  await recordUnanswered(f.client, 'bot', 'Otopark var mı?', undefined, () => Promise.reject(new Error('429')))
+  assertEquals(f.saved[0], { p_bot_id: 'bot', p_question: 'Otopark var mı?', p_embedding: null })
 })

@@ -57,21 +57,27 @@ export function maskPersonalData(text: string): string {
     })
 }
 
+type Embed = (texts: string[], inputType: 'query') => Promise<number[][]>
+
 // Never throws: a failed write must not break the chat reply. The embedding
 // groups the question with similar open ones (record_unanswered_question,
-// migration 021); without one (no documents) the masked text is embedded.
+// migration 021) and is always computed from the MASKED text, so no personal
+// data is encoded in what we store. The retrieval embedding (of the raw
+// question) is reused only when masking changed nothing, i.e. same input.
 export async function recordUnanswered(
   client: SupabaseClient,
   botId: string,
   question: string,
-  queryEmbedding?: number[],
+  rawQueryEmbedding?: number[],
+  embed: Embed = getEmbeddings,
 ): Promise<void> {
+  const normalized = question.replace(/\s+/g, ' ').trim().slice(0, MAX_QUESTION_CHARS)
   const masked = maskPersonalData(question).replace(/\s+/g, ' ').trim().slice(0, MAX_QUESTION_CHARS)
   if (!masked) return
   try {
-    let embedding: number[] | null = queryEmbedding ?? null
+    let embedding: number[] | null = masked === normalized && rawQueryEmbedding ? rawQueryEmbedding : null
     if (!embedding) {
-      embedding = await getEmbeddings([masked], 'query').then(([e]) => e).catch(() => null)
+      embedding = await embed([masked], 'query').then(([e]) => e).catch(() => null)
     }
     const { error } = await client.rpc('record_unanswered_question', {
       p_bot_id: botId,

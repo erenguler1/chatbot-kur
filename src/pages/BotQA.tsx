@@ -5,7 +5,10 @@ import { EmptyState } from '../components/EmptyState'
 import { Skeleton } from '../components/Skeleton'
 import { QAFormDialog } from '../components/QAFormDialog'
 import { QADeleteDialog } from '../components/QADeleteDialog'
+import { UnansweredQuestions } from '../components/UnansweredQuestions'
 import { useQAPairs } from '../hooks/useQAPairs'
+import { useUnansweredQuestions } from '../hooks/useUnansweredQuestions'
+import type { QuestionGroup } from '../lib/questionGroups'
 import type { Bot } from '../types/bot'
 import type { QAPair } from '../types/qa'
 
@@ -29,10 +32,12 @@ const ICON_BTN_DANGER_CLASS =
 export function BotQA() {
   const { bot } = useOutletContext<BotQAContext>()
   const { qaPairs, isLoading, error, refetch } = useQAPairs(bot.id)
+  const unanswered = useUnansweredQuestions(bot.id)
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create')
   const [editingQA, setEditingQA] = useState<QAPair | null>(null)
+  const [answering, setAnswering] = useState<QuestionGroup | null>(null)
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deletingQA, setDeletingQA] = useState<QAPair | null>(null)
@@ -40,7 +45,21 @@ export function BotQA() {
   const openCreateDialog = () => {
     setDialogMode('create')
     setEditingQA(null)
+    setAnswering(null)
     setDialogOpen(true)
+  }
+
+  const openAnswerDialog = (group: QuestionGroup) => {
+    setDialogMode('create')
+    setEditingQA(null)
+    setAnswering(group)
+    setDialogOpen(true)
+  }
+
+  const handleQASaved = () => {
+    void refetch()
+    // The group is answered now; its questions leave the panel.
+    if (answering) void unanswered.resolve(answering).catch(() => {})
   }
 
   const openEditDialog = (qa: QAPair) => {
@@ -55,15 +74,20 @@ export function BotQA() {
   }
 
   const renderTopBar = (count: number) => (
-    <div className="flex items-center justify-between mb-4">
-      <span className="text-sm text-[var(--text-muted)]">
-        {count} soru-cevap çifti
-      </span>
-      <button type="button" onClick={openCreateDialog} className={PRIMARY_BTN_CLASS}>
-        <Plus size={14} />
-        Yeni Soru Ekle
-      </button>
-    </div>
+    <>
+      <UnansweredQuestions
+        groups={unanswered.groups}
+        onAnswer={openAnswerDialog}
+        onIgnore={unanswered.resolve}
+      />
+      <div className="flex items-center justify-between mb-4">
+        <span className="text-sm text-[var(--text-muted)]">{count} soru-cevap çifti</span>
+        <button type="button" onClick={openCreateDialog} className={PRIMARY_BTN_CLASS}>
+          <Plus size={14} />
+          Yeni Soru Ekle
+        </button>
+      </div>
+    </>
   )
 
   let body: ReactElement
@@ -151,9 +175,7 @@ export function BotQA() {
                   </button>
                 </div>
               </div>
-              <p className="text-sm text-[var(--text-muted)] mt-2 break-words">
-                C: {qa.answer}
-              </p>
+              <p className="text-sm text-[var(--text-muted)] mt-2 break-words">C: {qa.answer}</p>
             </li>
           ))}
         </ul>
@@ -170,7 +192,8 @@ export function BotQA() {
         mode={dialogMode}
         botId={bot.id}
         qaPair={editingQA ?? undefined}
-        onSuccess={() => void refetch()}
+        initialQuestion={answering?.label}
+        onSuccess={handleQASaved}
       />
       <QADeleteDialog
         open={deleteDialogOpen}

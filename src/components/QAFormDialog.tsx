@@ -10,6 +10,8 @@ interface QAFormDialogProps {
   mode: 'create' | 'edit'
   botId: string
   qaPair?: QAPair
+  // Create mode: question to start with ("Q&A olarak cevapla").
+  initialQuestion?: string
   onSuccess: () => void
 }
 
@@ -30,6 +32,7 @@ export function QAFormDialog({
   mode,
   botId,
   qaPair,
+  initialQuestion,
   onSuccess,
 }: QAFormDialogProps) {
   const [question, setQuestion] = useState('')
@@ -45,13 +48,13 @@ export function QAFormDialog({
       setQuestion(qaPair.question)
       setAnswer(qaPair.answer)
     } else {
-      setQuestion('')
+      setQuestion(initialQuestion ?? '')
       setAnswer('')
     }
     setQuestionError('')
     setAnswerError('')
     setFormError('')
-  }, [open, mode, qaPair])
+  }, [open, mode, qaPair, initialQuestion])
 
   const handleOpenChange = (next: boolean) => {
     if (submitting) return

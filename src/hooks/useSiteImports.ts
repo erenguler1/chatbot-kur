@@ -6,7 +6,7 @@ import type { SiteImport } from '../types/document'
 interface UseSiteImportsResult {
   imports: SiteImport[]
   // Per import: message of a stopped run ('' = none), and whether the run is
-  // pausing for Voyage's rate limit.
+  // pausing (Voyage rate limit or the site's robots.txt Crawl-delay).
   stepErrors: Record<string, string>
   waiting: Record<string, boolean>
   startImport: (url: string) => Promise<void>

@@ -9,7 +9,8 @@
 //           (sitemap.xml, else the start page's links), creates site_imports.
 // - step:   { action: "step", import_id }     processes the next few pages.
 //           On Voyage 429 the pages go back in the queue and the response
-//           carries retry_after (seconds).
+//           carries retry_after (seconds). A robots.txt Crawl-delay means one
+//           page per step and retry_after = that delay.
 // - rescan: { action: "rescan", import_id }   discovers again and re-runs the
 //           steps; pages are replaced by URL, vanished pages are removed.
 //
@@ -340,9 +341,10 @@ Deno.serve(async (req) => {
       }
     };
 
+    const crawlDelay = robotsFromText(row.robots_txt).crawlDelay;
     const { data: claimed, error: claimError } = await admin.rpc("claim_site_import_pages", {
       p_import_id: row.id,
-      p_count: PAGES_PER_STEP,
+      p_count: crawlDelay > 0 ? 1 : PAGES_PER_STEP,
     });
     if (claimError) throw claimError;
     const urls = (claimed ?? []) as { page_url: string; page_index: number }[];
@@ -443,7 +445,11 @@ Deno.serve(async (req) => {
     if (progressError) throw progressError;
     if (progress?.[0]?.finished) await finish();
 
-    return json({ import: await publicRow(row.id) }, 200);
+    const updated = await publicRow(row.id);
+    return json(
+      updated.status === "running" && crawlDelay > 0 ? { import: updated, retry_after: crawlDelay } : { import: updated },
+      200,
+    );
   } catch (err) {
     if (err instanceof UserError) return json({ error: err.message }, err.status);
     console.error("import-site error:", err);

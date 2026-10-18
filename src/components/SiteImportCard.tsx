@@ -40,7 +40,7 @@ export function SiteImportCard({ siteImport: s, stepError, waiting, onRescan, on
 
   let status: string
   if (running) {
-    status = waiting ? `${done}/${total} sayfa · yoğunluk nedeniyle kısa bir bekleme` : `${done}/${total} sayfa okunuyor...`
+    status = waiting ? `${done}/${total} sayfa · sıradaki sayfa için bekleniyor` : `${done}/${total} sayfa okunuyor...`
   } else if (s.status === 'failed') {
     status = 'Okunamadı'
   } else {

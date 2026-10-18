@@ -123,6 +123,9 @@ Sitemap: https://ornek.com/sitemap_index.xml
   assert(!ok('/index.php'))
   assert(ok('/index.php?x=1'))
   assertEquals(r.sitemaps, ['https://ornek.com/sitemap_index.xml'])
+  assertEquals(r.crawlDelay, 0)
+  assertEquals(parseRobots('User-agent: *\nCrawl-delay: 30\nDisallow: /admin').crawlDelay, 30)
+  assertEquals(parseRobots('User-agent: *\nCrawl-delay: 3600').crawlDelay, 60)
 
   const star = parseRobots('User-agent: *\nDisallow: /private\nDisallow:\n')
   assert(!robotsAllows(star, new URL('https://ornek.com/private/1')))

@@ -308,14 +308,19 @@ interface RobotsRule {
 export interface Robots {
   rules: RobotsRule[]
   sitemaps: string[]
+  crawlDelay: number // seconds between requests the site asks for (0 = none)
 }
+
+// Crawl-delay is non-standard but sites use it; honored up to a minute.
+const MAX_CRAWL_DELAY_S = 60
 
 // RFC 9309: the group for our token if there is one, else "*". Rules are
 // matched by longest pattern; Allow wins a tie.
 export function parseRobots(text: string): Robots {
-  const groups: { agents: string[]; rules: RobotsRule[] }[] = []
+  type Group = { agents: string[]; rules: RobotsRule[]; delay: number }
+  const groups: Group[] = []
   const sitemaps: string[] = []
-  let current: { agents: string[]; rules: RobotsRule[] } | null = null
+  let current: Group | null = null
   let lastWasAgent = false
 
   for (const rawLine of text.split(/\r?\n/)) {
@@ -330,7 +335,7 @@ export function parseRobots(text: string): Robots {
     }
     if (key === 'user-agent') {
       if (!current || !lastWasAgent) {
-        current = { agents: [], rules: [] }
+        current = { agents: [], rules: [], delay: 0 }
         groups.push(current)
       }
       current.agents.push(value.toLowerCase())
@@ -342,16 +347,23 @@ export function parseRobots(text: string): Robots {
     if (key === 'allow' || key === 'disallow') {
       // "Disallow:" (empty) allows everything: no rule.
       if (value) current.rules.push({ allow: key === 'allow', pattern: value })
+    } else if (key === 'crawl-delay') {
+      const n = Number(value)
+      if (n > 0) current.delay = Math.min(n, MAX_CRAWL_DELAY_S)
     }
   }
 
   const ours = groups.filter((g) => g.agents.some((a) => a !== '*' && ROBOTS_TOKEN.startsWith(a)))
   const chosen = ours.length > 0 ? ours : groups.filter((g) => g.agents.includes('*'))
-  return { rules: chosen.flatMap((g) => g.rules), sitemaps }
+  return {
+    rules: chosen.flatMap((g) => g.rules),
+    sitemaps,
+    crawlDelay: Math.max(0, ...chosen.map((g) => g.delay)),
+  }
 }
 
-const ALLOW_ALL: Robots = { rules: [], sitemaps: [] }
-const DISALLOW_ALL: Robots = { rules: [{ allow: false, pattern: '/' }], sitemaps: [] }
+const ALLOW_ALL: Robots = { rules: [], sitemaps: [], crawlDelay: 0 }
+const DISALLOW_ALL: Robots = { rules: [{ allow: false, pattern: '/' }], sitemaps: [], crawlDelay: 0 }
 
 function patternMatches(pattern: string, path: string): boolean {
   const anchored = pattern.endsWith('$')

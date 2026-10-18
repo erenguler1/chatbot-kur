@@ -1,12 +1,18 @@
 import { useState } from 'react'
 import * as AlertDialog from '@radix-ui/react-alert-dialog'
-import type { DocumentUpload } from '../types/document'
+
+// A single document, or a whole imported site with all its pages.
+export interface DeleteTarget {
+  kind: 'document' | 'site'
+  id: string
+  name: string
+}
 
 interface DocumentDeleteDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  document: DocumentUpload | null
-  onConfirm: (uploadId: string) => Promise<void>
+  target: DeleteTarget | null
+  onConfirm: (target: DeleteTarget) => Promise<void>
 }
 
 const SECONDARY_BTN_CLASS =
@@ -15,7 +21,7 @@ const SECONDARY_BTN_CLASS =
 export function DocumentDeleteDialog({
   open,
   onOpenChange,
-  document,
+  target,
   onConfirm,
 }: DocumentDeleteDialogProps) {
   const [isDeleting, setIsDeleting] = useState(false)
@@ -28,11 +34,11 @@ export function DocumentDeleteDialog({
   }
 
   const handleDelete = async () => {
-    if (!document) return
+    if (!target) return
     setIsDeleting(true)
     setDeleteError('')
     try {
-      await onConfirm(document.upload_id)
+      await onConfirm(target)
       onOpenChange(false)
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : 'Belge silinemedi.')
@@ -47,13 +53,15 @@ export function DocumentDeleteDialog({
         <AlertDialog.Overlay className="fixed inset-0 z-40 bg-black/60" />
         <AlertDialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[calc(100%-2rem)] max-w-md bg-[var(--bg-card)] border border-[var(--border)] rounded-[var(--radius-card)] p-6 shadow-2xl">
           <AlertDialog.Title className="text-lg font-semibold text-[var(--text)]">
-            Belgeyi Sil
+            {target?.kind === 'site' ? 'Siteyi Kaldır' : 'Belgeyi Sil'}
           </AlertDialog.Title>
           <AlertDialog.Description className="text-sm text-[var(--text-muted)] mt-2">
             <span className="text-[var(--text)] font-medium">
-              "{document?.source_name ?? 'Adsız belge'}"
+              "{target?.name}"
             </span>{' '}
-            silinecek. Bot bu belgedeki bilgileri artık kullanmayacak.
+            {target?.kind === 'site'
+              ? 've bu siteden eklenen tüm sayfalar silinecek. Bot bu bilgileri artık kullanmayacak.'
+              : 'silinecek. Bot bu belgedeki bilgileri artık kullanmayacak.'}
           </AlertDialog.Description>
           {deleteError && <div className="text-xs text-[var(--danger)] mt-3">{deleteError}</div>}
           <div className="flex gap-2 justify-end mt-5">

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
-import { FunctionsHttpError, type PostgrestError } from '@supabase/supabase-js'
+import type { PostgrestError } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
+import { functionErrorMessage } from '../lib/functionError'
 import type { DocumentSourceType, DocumentUpload } from '../types/document'
 
 interface UseDocumentsResult {
@@ -10,21 +11,6 @@ interface UseDocumentsResult {
   refetch: () => Promise<void>
   uploadDocument: (content: string, sourceName: string, sourceType: DocumentSourceType) => Promise<void>
   deleteDocument: (uploadId: string) => Promise<void>
-}
-
-// Turns an embed-document error response into the Turkish message it carries.
-async function functionErrorMessage(err: unknown): Promise<string> {
-  if (err instanceof FunctionsHttpError) {
-    try {
-      const body: unknown = await err.context.json()
-      if (body && typeof body === 'object' && 'error' in body && typeof body.error === 'string') {
-        return body.error
-      }
-    } catch {
-      // fall through to the generic message
-    }
-  }
-  return 'Belge yüklenemedi. Lütfen tekrar deneyin.'
 }
 
 interface FetchResult {
@@ -77,7 +63,7 @@ export function useDocuments(botId: string): UseDocumentsResult {
       const { error: invokeError } = await supabase.functions.invoke('embed-document', {
         body: { bot_id: botId, content, source_name: sourceName, source_type: sourceType },
       })
-      if (invokeError) throw new Error(await functionErrorMessage(invokeError))
+      if (invokeError) throw new Error(await functionErrorMessage(invokeError, 'Belge yüklenemedi. Lütfen tekrar deneyin.'))
       await refetch()
     },
     [botId, refetch],

@@ -30,3 +30,4 @@ scripts/.test-users.env
 
 # reprocess-documents.ts backups (real user content)
 scripts/.reprocess-backup-*
+/deno.lock

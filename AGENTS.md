@@ -10,7 +10,7 @@ Bu dosya, ChatBotKur projesi üzerinde çalışan AI agent'ların (Claude Code, 
 - **Canlı:** https://chatbot-kur.vercel.app
 - **Repo:** github.com/erenguler1/chatbot-kur (private)
 - **Faz 1:** Tamamlandı (Mayıs 2026, `faz-1-v1.0` tag)
-- **Faz 2:** Devam ediyor — RAG (v0.2 canlıda: bölüm bazlı parçalama + PDF), sırada Tool Use, Image, Voice, WhatsApp, MCP
+- **Faz 2:** Devam ediyor — RAG (v0.3 canlıda: web sitesinden içe aktarma + cevaplanamayan sorular; v0.2: bölüm bazlı parçalama + PDF), sırada Tool Use, Image, Voice, WhatsApp, MCP
 
 ## Teknoloji Yığını (Faz 1'de kilitlendi)
 
@@ -24,9 +24,10 @@ Bu dosya, ChatBotKur projesi üzerinde çalışan AI agent'ların (Claude Code, 
 
 ## Veritabanı — Gerçek Şema
 
-Tablolar: `bots`, `qa_pairs`, `conversations`, `messages`, `document_sources` (RAG: yüklemenin ORİJİNAL metni, türü, chunker'ı), `documents` (RAG: parça başına bir satır, `upload_id` → `document_sources.id`)
-View: `document_uploads` (security_invoker; Belgeler sekmesi listesi, `document_sources`'tan okur). RPC: `match_documents` (RAG araması).
-Belge silme: `document_sources.deleted_at` set edilir; trigger parçaları da soft-delete eder (018).
+Tablolar: `bots`, `qa_pairs`, `conversations`, `messages`, `document_sources` (RAG: yüklemenin ORİJİNAL metni, türü `text|pdf|url`, chunker'ı; web sayfasında `source_url`, `import_id`), `documents` (RAG: parça başına bir satır, `upload_id` → `document_sources.id`), `site_imports` (bir "Web sitesinden ekle" işlemi: sayfa listesi, ilerleme, robots.txt), `unanswered_questions` (maskelenmiş soru metni, embedding, `group_id`)
+View: `document_uploads` (security_invoker; Belgeler sekmesi listesi, `document_sources`'tan okur). RPC: `match_documents` (RAG araması), `claim_site_import_pages` / `release_site_import_pages` / `record_site_import_progress` (import-site adımları, sadece service_role), `record_unanswered_question` (anlam bazlı gruplayarak ekler).
+Belge silme: `document_sources.deleted_at` set edilir; trigger parçaları da soft-delete eder (018). Site kaldırma: `site_imports.deleted_at` → sayfaları → parçaları (019).
+pg_cron: `purge-unanswered-questions` her gece 03:17'de 90 günden eski soruları kalıcı siler (020).
 
 **Migration'lar `supabase db push` ile uygulanır** (Dashboard SQL Editor artık KULLANILMIYOR):
 - 001–013 elle çalıştırılmıştı; uzak geçmişe `supabase migration repair --status applied` ile işlendi. 014+ push ile geldi.
@@ -47,6 +48,7 @@ Belge silme: `document_sources.deleted_at` set edilir; trigger parçaları da so
 - `user_id` her zaman indeksli
 - Yeni tablo eklerken: service_role GRANT ver (Migration 010 pattern'i)
 - Anonim erişim gerekirse: anon GRANT ver (Migration 011 pattern'i)
+- Edge Function'ın okuyup işlediği alanları kullanıcı değiştirememeli: kolon bazlı GRANT (`GRANT UPDATE (deleted_at) ...`, 019/020 pattern'i)
 
 ## Edge Functions (Faz 1)
 
@@ -55,13 +57,18 @@ Belge silme: `document_sources.deleted_at` set edilir; trigger parçaları da so
 - **`chat/`** — authenticated streaming chat. JWT verify.
 - **`public-chat/`** — anonim widget streaming chat. `--no-verify-jwt` flag ile deploy. service_role ile RLS bypass.
 - **`public-get-messages/`** — anonim history endpoint. `--no-verify-jwt`. Kolonları açıkça seçer (`messages.sources` müşteriye gitmez).
+- **`import-site/`** (Faz 2, v0.3) — JWT ile; "Web sitesinden ekle". `start` (robots.txt + sitemap/bağlantılardan en çok 30 sayfa) → `step` (her çağrıda 3 sayfa; Crawl-delay varsa 1 sayfa + bekleme, sunucuda da zorlanır; Voyage 429'da sayfalar sıraya geri döner, `retry_after`) → `rescan` (aynı URL'nin kaynağını günceller, artık bulunmayan sayfaları siler). İşi tarayıcı sürer (`useSiteImports`), sekme açılınca yarım kalanı sürdürür.
 - **`embed-document/`** (Faz 2) — JWT ile; bot sahipliğini doğrular, orijinal metni `document_sources`'a, parçaları `documents`'a yazar. `{ reprocess: upload_id }` modu belgeyi orijinal metinden güncel chunker ile yeniden parçalar (bot sahibi veya service_role JWT'si; admin kontrolü JWT `role` claim'iyle — fonksiyon `--no-verify-jwt` ile deploy EDİLMEMELİ, yoksa bu kontrol güvensiz olur).
 - **`_shared/`** — deploy edilmez, fonksiyonlar import eder (kod tekrarı YOK):
   - `prompt.ts` — system prompt (chat + public-chat ortak)
   - `retrieval.ts` — RAG araması (`retrieveDocuments`, eşik, `sourcesForAnswer`)
   - `voyage.ts` — Voyage client (model sabiti burada; 128'lik batch'ler)
   - `chunking.ts` — parçalama (`chunkDocument`, `CHUNKER_ID`)
-  - Testler: `cd supabase/functions && deno test _shared/`
+  - `documents.ts` — parça ekleme/silme/değiştirme (batch'li; embed-document + import-site)
+  - `web.ts` — SSRF korumalı fetch, robots.txt, sitemap (import-site)
+  - `html.ts` — HTML'den ana içerik (deno-dom; menü/footer/çerez bandı/bağlantı yoğun bloklar atılır, başlıklar `## `)
+  - `unanswered.ts` — no-match tespiti, kişisel veri maskeleme, soru kaydı
+  - Testler: `cd supabase/functions && deno test _shared/`; frontend saf modülleri: `deno test src/lib/questionGroups_test.ts` (`*_test.ts` app build'inden hariç)
 
 **Kritik:** Public Edge Function'larda CORS preflight'ta `Access-Control-Allow-Headers`'a `apikey` eklemek zorunlu — yoksa browser preflight reddeder.
 
@@ -71,17 +78,20 @@ supabase functions deploy chat
 supabase functions deploy public-chat --no-verify-jwt
 supabase functions deploy public-get-messages --no-verify-jwt
 supabase functions deploy embed-document
+supabase functions deploy import-site
 ```
-`_shared/` değişirse onu kullanan TÜM fonksiyonları yeniden deploy et (chat, public-chat, embed-document).
+`_shared/` değişirse onu kullanan TÜM fonksiyonları yeniden deploy et (chat, public-chat, embed-document, import-site).
 
 ## RAG (Faz 2, v0.2)
 
 - **Akış:** soru → Voyage `input_type: "query"` → `match_documents` (aynı botun en yakın 5 parçası) → benzerliği **0,40** altındakiler atılır → prompt'a eklenir.
-- **Parçalama (`section-30`):** başlıklar (BÜYÜK HARF, `##`, `1. Başlık`, `Başlık:`) bölüm açar; belge başlığı her parçaya önek olur ("Makas Kuaför › Erkek"); cümleler ve liste/fiyat satırları 30 kelimeye kadar paketlenir. Metin sınırı 200.000 karakter (frontend `MAX_DOCUMENT_CHARS` ile aynı).
+- **Parçalama (`section-30b`):** başlıklar (BÜYÜK HARF, `##`, `1. Başlık`, `Başlık:`) bölüm açar; belge başlığı her parçaya önek olur ("Makas Kuaför › Erkek"); art arda gelen başlıklar iç içe birleşir ("Akbank Kampüs › Çalışma Saatleri"; v0.3, rag-eval parçaları birebir aynı → eşik geçerli); cümleler ve liste/fiyat satırları 30 kelimeye kadar paketlenir. Metin sınırı 200.000 karakter (frontend `MAX_DOCUMENT_CHARS` ile aynı).
 - **Yöntem/eşik nasıl seçildi:** `scripts/rag-eval/` (Türkçe kafe/kuaför/iade metinleri, 36 alakalı + 106 alakasız/başka işletme sorusu). Sonuç: section-30 @0,40 → 35/36 isabet, 0 yanlış eşleşme; v0.1 (400/50 @0,35) → 24/36.
 - **Kalibrasyon yeniden gerekirse** (model, chunker veya prompt dili değişince): `scripts/test-users.sh create` → `supabase functions deploy rag-eval` → `deno run -A scripts/rag-eval/eval.ts` → `supabase functions delete rag-eval` (silindiğini `functions list` + 404 ile doğrula) → `scripts/test-users.sh cleanup`. rag-eval sadece test kullanıcılarına açık; canlıda BIRAKMA.
 - **Chunker değişince:** `CHUNKER_ID`'yi değiştir, embed-document'i deploy et, `deno run -A scripts/reprocess-documents.ts` (önce `--dry`) ile kayıtlı belgeleri yeniden işle.
 - **PDF:** metin tarayıcıda çıkarılır (`src/lib/pdfText.ts`, pdfjs-dist, sadece PDF seçilince yüklenir). Sınır 10 MB / 100 sayfa. Taranmış/şifreli/bozuk PDF'te Türkçe hata. OCR yok. Dosyanın kendisi saklanmaz, sadece çıkan metin (`source_type = 'pdf'`).
+- **Web sitesinden içe aktarma (v0.3):** her sayfa ayrı `document_sources` satırı (`source_type='url'`), ad "Sayfa başlığı · /yol". SSRF: yalnızca http/https ve varsayılan portlar, URL'de kullanıcı bilgisi yok, ad çözülüp tüm IP'ler herkese açık olmalı (localhost/özel/link-local/CGNAT/metadata/IPv6 ULA/mapped engelli), yönlendirmeler elle ve her adım yeniden kontrol, 2 MB / 10 sn. Kalan risk: DNS rebinding (kontrol ile fetch arasında). robots.txt: bizim grup (`ChatBotKurBot`) yoksa `*`; 5xx/zaman aşımı = okuma yok (RFC 9309). İçerik <200 karakter → "boş" (çoğunlukla JavaScript ile yüklenen site); hiç sayfa okunamazsa Türkçe JS uyarısı. Sınırlar: bot başına 5 site, site başına 30 sayfa, sayfa başına 200.000 karakter. Sayfa metni de `<belgeler>` içinde VERİ olarak gider.
+- **Cevaplanamayan sorular (v0.3):** bot no-match ile cevap verince (`isNoMatchAnswer`: mesaj birebir ya da kelimelerinin ≥%60'ı kök eşleşmesiyle — model cümleyi bazen değiştiriyor) chat/public-chat yalnızca soru metnini kaydeder. Telefon/e-posta/kimlik/IBAN/kart maskelenir; embedding MASKELENMİŞ metinden üretilir (retrieval embedding'i yalnızca maskeleme hiçbir şey değiştirmediyse kullanılır, test var). `record_unanswered_question` soruyu en yakın açık soruyla (cosine ≥ 0,70; canlı ölçüm: aynı konu ≥0,72, farklı konu ≤0,41) aynı gruba koyar. Panel "Sorular & Cevaplar" sekmesinin üstünde; "Q&A olarak cevapla" kaydedilince ve "Yoksay" grubu soft-delete eder. 90 gün sonra pg_cron siler.
 - **Öncelik:** Q&A çiftleri öncelikli, belgeler ek kaynak; çelişirse Q&A geçerli; ikisinde de yoksa `no_match_message` (uydurma yok).
 - **Prompt injection:** belge içeriği `<belgeler><belge kaynak="...">` içinde "VERİ" olarak verilir, etiketler kaçırılır. Bu koruma `_shared/prompt_test.ts`'te test ediliyor; bozma.
 - **İzolasyon:** `match_documents` her zaman `p_bot_id` ile filtreler. `chat` kullanıcı JWT'si ile çağırır (RLS de geçerli), `public-chat` service_role ile — orada TEK koruma bot filtresidir.
@@ -161,6 +171,12 @@ Yoksa hard refresh 404 verir.
 8. Edge Function'da `SUPABASE_SERVICE_ROLE_KEY` env'i, CLI'nın verdiği legacy service_role JWT'siyle aynı string DEĞİL → admin kontrolünü string karşılaştırmasıyla yapma
 9. Küçük parçalarla belge başına ~1000 parça → Voyage (128), insert (200) ve `.in("id", ...)` delete (100) batch'lenmeli; uzun `in` listesi URL sınırını aşar
 10. PDF satır kaydırması: rakam içeren kısa satır fiyat satırı sanılıyordu ("7 iş / günü") → küçük harfle devam eden satır paragrafın devamı sayılır
+11. (v0.3) Art arda iki başlıkta ilk başlık kayboluyordu → şube adı düşüyordu ("Akbank Kampüs" + "Çalışma Saatleri:") → başlıklar iç içe birleşir (section-30b)
+12. (v0.3) robots.txt Crawl-delay'e yalnızca tarayıcı uyuyordu → sunucu da `updated_at`'e bakıp zorlar
+13. (v0.3) Model no-match mesajını kendi cümleleriyle yazınca soru kaydedilmiyordu → toleranslı tespit + prompt "kelimesi kelimesine"
+14. (v0.3) Prompt'ta telefondan bahsetmek modele müşterinin numarasını işletmenin numarası gibi söyletti → kural: müşterinin verdiği bilgiyi tekrar etme, kaydettiğini söyleme
+15. (v0.3) Kelime örtüşmesiyle soru gruplama Türkçede tutmadı (köpek/köpeğim, farklı fiiller) → embedding + `group_id` (021)
+16. `npm:` ve `jsr:` supabase-js tipleri birbirine atanamaz → `_shared` modülü onu çağıran fonksiyonun client'ıyla aynı kaynaktan tip almalı (chat/public-chat: npm, embed-document/import-site: jsr)
 
 ## TypeScript Kuralları
 

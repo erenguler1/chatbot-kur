@@ -43,15 +43,22 @@ Faz 1 çalışıyor; Faz 2 üstüne kalite katar. Sırası kullanıcı geri bild
 - [x] PDF yükleme — metin tabanlı (v0.2)
 - [x] Kısa/çok konulu metinlerde parçalama — section-30, eşik 0,40 (v0.2; "glutensiz" 0,26 → 0,45)
 - [ ] Taranmış PDF için OCR
-- [ ] URL'den içerik çekme (sayfa metnini indirip belge olarak ekleme)
+- [x] Web sitesinden içe aktarma — sitemap/bağlantılar, 30 sayfa, SSRF koruması, robots.txt + Crawl-delay, Yeniden tara (v0.3)
+- [x] Cevaplanamayan sorular paneli — maskeleme, anlam bazlı gruplama, Q&A'ya çevir / yoksay, 90 gün (v0.3)
+- [ ] JavaScript ile yüklenen siteler (SPA): içerik boş geliyor, şimdilik Türkçe uyarı veriliyor. Headless tarayıcı (ör. harici render servisi) gerekir; Edge Function'da çalışmaz
+- [ ] Site içe aktarmada ürün/kategori sayfaları ve yasal metinler (KVKK, çerez) 30 sayfalık kotayı dolduruyor; sayfa seçimi (kullanıcı listeden işaretlesin) veya yasal sayfaları sona atma
+- [ ] Zamanlanmış otomatik "Yeniden tara" (haftalık; pg_cron + import-site)
+- [ ] DNS rebinding'e karşı tam koruma: çözülen IP'ye bağlanıp Host/SNI ile istek (şu an kontrol ile fetch arasında küçük pencere var)
 - [ ] Belge düzenleme (şimdilik sil + yeniden ekle; orijinal metin artık saklandığı için kolaylaştı)
-- [ ] Eş anlamlı ifade eşleşmesi: "Geç kalırsam ne olur?" ↔ "gecikmelerde" (0,379, eşik altı); sorgu genişletme/yeniden yazma ölçülebilir
+- [ ] Eş anlamlı ifade eşleşmesi: "Geç kalırsam ne olur?" ↔ "gecikmelerde" (0,379, eşik altı); v0.3 canlı örnek: "Kronotrop ne zaman kuruldu?" ↔ "2012'de yola çıktık" (0,335). Olası çözüm: **hibrit arama** — anlam araması (pgvector) + anahtar kelime araması (Postgres full-text, `tsvector`, Türkçe yapılandırma/unaccent) birlikte, sonuçlar RRF (reciprocal rank fusion) ile birleştirilir; alternatif/ek: sorgu genişletme/yeniden yazma. rag-eval'e bu soruları ekleyip ölç
 - [ ] Eval setini büyüt (gerçek müşteri soruları geldikçe); şu an 36 + 106 soru, eşik payı dar (en yüksek yanlış 0,39 / eşik 0,40)
 
 ### Kalite ve Eval
 - [ ] Eval set'leri (bot başına test soruları, otomatik scoring)
 - [ ] Bot kalite skoru dashboard'u
-- [ ] Conversation analytics (en sık sorulan, en az anlaşılan sorular)
+- [ ] Conversation analytics (en sık sorulan sorular; "anlaşılamayan" kısmı v0.3 cevaplanamayan sorular paneliyle kısmen geldi)
+- [ ] Cevaplanamayan sorular: no-match tespiti metin eşleşmesine dayanıyor (model cümleyi değiştirebilir); yapılandırılmış sinyal (tool use / ayrı alan) Faz 2 Tool Use ile düşünülebilir
+- [ ] Test Sohbeti soruları da panele düşüyor (bot sahibinin denemeleri); kaynağa göre filtre (widget / test) eklenebilir
 
 ### Maliyet ve Kullanım
 - [ ] Detaylı Claude API logging (her conversation kaç token, kaç $)

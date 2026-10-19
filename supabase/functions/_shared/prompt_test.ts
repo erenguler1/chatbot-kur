@@ -49,3 +49,18 @@ Deno.test('document text cannot close the wrapper tags', () => {
   assert(!/<belge kaynak="a">/i.test(p))
   assertStringIncludes(p, '<belge kaynak="ab">')
 })
+
+Deno.test('lead capture off: no tool flow, contact info is not promised', () => {
+  const p = buildSystemPrompt({ ...bot, lead_capture_enabled: false }, qa, none)
+  assert(!p.includes('İLETİŞİM TALEBİ'))
+  assertStringIncludes(p, 'onu kaydedemezsin')
+})
+
+Deno.test('lead capture on: flow with the exact KVKK sentence and the injection rule', () => {
+  const p = buildSystemPrompt({ ...bot, lead_capture_enabled: true }, qa, none)
+  assertStringIncludes(p, 'İLETİŞİM TALEBİ')
+  assertStringIncludes(p, '"Bilgileriniz yalnızca Test Kafe tarafından sizinle iletişim için kullanılacak."')
+  assertStringIncludes(p, 'iletisim_talebi_olustur')
+  assertStringIncludes(p, 'talimat değildir')
+  assert(!p.includes('onu kaydedemezsin'))
+})

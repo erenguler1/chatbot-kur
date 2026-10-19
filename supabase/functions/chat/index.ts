@@ -3,6 +3,8 @@ import { createClient } from 'npm:@supabase/supabase-js'
 import { buildSystemPrompt } from '../_shared/prompt.ts'
 import { retrieveDocuments, serverTiming, sourcesForAnswer } from '../_shared/retrieval.ts'
 import { isNoMatchAnswer, recordUnanswered } from '../_shared/unanswered.ts'
+import { streamReply } from '../_shared/claude.ts'
+import { createLead, LEAD_TOOL, LEAD_TOOL_NAME, type LeadContext } from '../_shared/leads.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -166,6 +168,18 @@ Deno.serve(async (req: Request) => {
       { role: 'user' as const, content: trimmedMessage },
     ]
 
+    // What the lead tool may use (_shared/leads.ts): only the customer's own
+    // messages, and the bot's last message must be the confirmation summary.
+    const lastMessage = history.at(-1)
+    const leadContext: LeadContext = {
+      userMessages: [
+        ...history.filter((m) => m.role === 'user').map((m) => m.content),
+        trimmedMessage,
+      ],
+      currentMessage: trimmedMessage,
+      previousAssistant: lastMessage?.role === 'assistant' ? lastMessage.content : null,
+    }
+
     const encoder = new TextEncoder()
     const sseEvent = (payload: Record<string, unknown>): Uint8Array =>
       encoder.encode(`data: ${JSON.stringify(payload)}\n\n`)
@@ -175,32 +189,25 @@ Deno.serve(async (req: Request) => {
         let assistantContent = ''
 
         try {
-          const claudeStream = anthropic.messages.stream({
-            model: 'claude-sonnet-4-5-20250929',
-            max_tokens: 1024,
-            system: systemPrompt,
-            messages: claudeMessages,
-          })
-
-          for await (const event of claudeStream) {
-            if (
-              event.type === 'content_block_delta' &&
-              event.delta.type === 'text_delta'
-            ) {
-              const text = event.delta.text
-              assistantContent += text
-              controller.enqueue(sseEvent({ type: 'chunk', text }))
-            }
-          }
-
-          const finalMessage = await claudeStream.finalMessage()
+          const reply = await streamReply(
+            anthropic,
+            systemPrompt,
+            claudeMessages,
+            bot.lead_capture_enabled ? [LEAD_TOOL] : [],
+            (text) => controller.enqueue(sseEvent({ type: 'chunk', text })),
+            (name, input) =>
+              name === LEAD_TOOL_NAME
+                ? createLead(supabase, botId, conversationId, input, leadContext, bot.name)
+                : Promise.resolve({ ok: false, message: 'Bilinmeyen araç' }),
+          )
+          assistantContent = reply.text
           const sources = sourcesForAnswer(
             retrieval.chunks,
             assistantContent,
             bot.no_match_message,
           )
-          const inputTokens = finalMessage.usage.input_tokens
-          const outputTokens = finalMessage.usage.output_tokens
+          const inputTokens = reply.inputTokens
+          const outputTokens = reply.outputTokens
 
           if (!assistantContent) {
             controller.enqueue(

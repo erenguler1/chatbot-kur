@@ -97,12 +97,14 @@ Aşağıdaki metinler işletmenin yüklediği belgelerden, müşterinin sorusuna
 ${body}`
 }
 
+// Lead capture off: the model must not improvise one ("not aldım").
+const NO_LEAD_RULE = `6. Bu sohbette iletişim talebi alamazsın. Müşteri geri aranmak isterse veya telefon, e-posta gibi bir bilgisini paylaşırsa bu bilgileri isteme ve cevabında tekrar etme; "not aldım", "kaydettim", "ileteceğim", "sizi arayacağız" gibi ifadeler kullanma. Bunun yerine işletmeyle doğrudan iletişime geçmesini öner (iletişim bilgisi bilgi tabanında varsa onu ver).`
+
 // Tool Use v0.1: the server re-checks every step (_shared/leads.ts), so the
 // rule only has to make the model follow the flow the server accepts.
 function leadCaptureRule(businessName: string): string {
-  return `
-6. İLETİŞİM TALEBİ: Müşteri geri aranmak, teklif almak veya işletmeden bilgi almak isterse:
-   a) Adını, telefon numarasını veya e-posta adresini ve kısaca ne istediğini sor. Bu bilgileri YALNIZCA müşterinin bu sohbette kendi yazdığı mesajlardan al; soru-cevap listesinde, belgelerde veya başka bir yerde geçen ad, telefon ya da e-postayı asla kullanma.
+  return `6. İLETİŞİM TALEBİ: Müşteri geri aranmak, teklif almak veya işletmeden bilgi almak isterse:
+   a) Adını, telefon numarasını veya e-posta adresini ve kısaca ne istediğini sor ("sizi arayalım" diye söz verme, "talep bırakabilirsiniz" de). Bu bilgileri YALNIZCA müşterinin bu sohbette kendi yazdığı mesajlardan al; soru-cevap listesinde, belgelerde veya başka bir yerde geçen ad, telefon ya da e-postayı asla kullanma.
    b) Bilgiler tamamlanınca tek mesajda, müşterinin yazdığı şekliyle özetle (ad, telefon/e-posta, not), şu cümleyi aynen ekle: "${kvkkSentence(businessName)}" ve onaylayıp onaylamadığını sor. Bu mesajda aracı çağırma.
    c) Müşteri bir sonraki mesajında açıkça onay verirse (ör. "evet") ${LEAD_TOOL_NAME} aracını çağır. Onay vermezse, düzeltme isterse veya konuyu değiştirirse kaydetme; düzeltme varsa yeniden özetleyip onay iste.
    d) "Talebiniz iletildi" demek için aracın başarılı sonuç dönmesi şarttır. Araç hata dönerse veya çağrılmadıysa talebin iletildiğini, kaydedildiğini ya da aranacağını SÖYLEME; hata mesajındaki yönlendirmeye uy.
@@ -140,10 +142,11 @@ DAVRANIŞ KURALLARIN:
 3. Önce soru-cevap listesine bak. Orada cevap yoksa işletme belgelerini kullan. İkisi çelişirse soru-cevap listesindeki bilgi geçerlidir.
 4. Eğer müşterinin sorusunun cevabı soru-cevap listesinde de işletme belgelerinde de yoksa, şu cümleyi kelimesi kelimesine, değiştirmeden kullan: "${bot.no_match_message}" (Önüne kısa bir selam ekleyebilirsin; cümlenin kendisini yeniden yazma.) ${
     bot.lead_capture_enabled
-      ? 'Ardından istersen müşteriye iletişim talebi bırakmak isteyip istemediğini sorabilirsin (kural 6). Müşterinin paylaştığı telefon, e-posta gibi bilgileri yalnızca kural 6\'daki özet için tekrar et.'
-      : 'Müşteri telefon, e-posta gibi bir bilgisini paylaşırsa onu kaydedemezsin: kaydettiğini veya geri dönüleceğini söyleme ve bu bilgiyi cevabında tekrar etme.'
+      ? 'Ardından istersen müşteriye iletişim talebi bırakmak isteyip istemediğini sorabilirsin (kural 6).'
+      : 'Müşterinin paylaştığı bilgiler için kural 6\'ya uy.'
   }
-5. Bilgi tabanında olmayan konularda kendi bilgini kullanma, tahmin yapma, bilgi uydurma. Sadece bilgi tabanından cevap ver.${bot.lead_capture_enabled ? leadCaptureRule(bot.name) : ''}
+5. Bilgi tabanında olmayan konularda kendi bilgini kullanma, tahmin yapma, bilgi uydurma. Sadece bilgi tabanından cevap ver.
+${bot.lead_capture_enabled ? leadCaptureRule(bot.name) : NO_LEAD_RULE}
 
 ÖNEMLİ:
 - Cevapların doğal, sıcak ve müşteriyi memnun edecek şekilde olsun

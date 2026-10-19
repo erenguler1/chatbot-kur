@@ -8,6 +8,7 @@ import { StatusBadge } from '../components/StatusBadge'
 import { EmptyState } from '../components/EmptyState'
 import { Skeleton } from '../components/Skeleton'
 import { useBot } from '../hooks/useBot'
+import { useNewLeadCount } from '../hooks/useLeads'
 import { supabase } from '../lib/supabase'
 import { getBotStatus, type Bot } from '../types/bot'
 
@@ -18,6 +19,7 @@ const TABS = [
   { to: 'settings', label: 'Ayarlar' },
   { to: 'qa', label: 'Sorular & Cevaplar' },
   { to: 'documents', label: 'Belgeler' },
+  { to: 'leads', label: 'Talepler' },
   { to: 'prompt', label: 'Prompt Önizleme' },
   { to: 'test', label: 'Test Sohbeti' },
 ]
@@ -113,6 +115,7 @@ export function BotDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { bot, isLoading, error, refetch } = useBot(id)
+  const newLeads = useNewLeadCount(id)
 
   return (
     <div className="min-h-screen bg-[var(--bg-app)] text-[var(--text)]">
@@ -175,13 +178,13 @@ export function BotDetail() {
               <DeleteBotButton bot={bot} />
             </div>
 
-            <nav className="flex gap-1 border-b border-[var(--border)]">
+            <nav className="flex gap-1 border-b border-[var(--border)] overflow-x-auto">
               {TABS.map((tab) => (
                 <NavLink
                   key={tab.to}
                   to={tab.to}
                   className={({ isActive }) =>
-                    `px-4 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                    `px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 -mb-px ${
                       isActive
                         ? 'text-[var(--accent)] border-[var(--accent)]'
                         : 'text-[var(--text-muted)] hover:text-[var(--text)] border-transparent'
@@ -189,11 +192,19 @@ export function BotDetail() {
                   }
                 >
                   {tab.label}
+                  {tab.to === 'leads' && newLeads.count > 0 && (
+                    <span
+                      className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-[var(--accent)] text-white text-[10px] font-semibold"
+                      aria-label={`${newLeads.count} yeni talep`}
+                    >
+                      {newLeads.count > 99 ? '99+' : newLeads.count}
+                    </span>
+                  )}
                 </NavLink>
               ))}
             </nav>
 
-            <Outlet context={{ bot, refetch }} />
+            <Outlet context={{ bot, refetch, refreshNewLeads: newLeads.refresh }} />
           </>
         )}
       </main>

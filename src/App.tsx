@@ -10,6 +10,7 @@ import { BotDetail } from './pages/BotDetail'
 import { BotSettings } from './pages/BotSettings'
 import { BotQA } from './pages/BotQA'
 import { BotDocuments } from './pages/BotDocuments'
+import { BotLeads } from './pages/BotLeads'
 import { BotPrompt } from './pages/BotPrompt'
 import { BotTest } from './pages/BotTest'
 import { Widget } from './pages/Widget'
@@ -51,6 +52,7 @@ function App() {
             <Route path="settings" element={<BotSettings />} />
             <Route path="qa" element={<BotQA />} />
             <Route path="documents" element={<BotDocuments />} />
+            <Route path="leads" element={<BotLeads />} />
             <Route path="prompt" element={<BotPrompt />} />
             <Route path="test" element={<BotTest />} />
           </Route>

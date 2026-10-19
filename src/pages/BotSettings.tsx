@@ -68,6 +68,7 @@ export function BotSettings() {
   const [brandColor, setBrandColor] = useState(bot.brand_color)
   const [widgetPosition, setWidgetPosition] = useState<BotWidgetPosition>(bot.widget_position)
   const [status, setStatus] = useState<BotStatus>(bot.status)
+  const [leadCapture, setLeadCapture] = useState(bot.lead_capture_enabled)
 
   const [nameError, setNameError] = useState('')
   const [welcomeError, setWelcomeError] = useState('')
@@ -87,6 +88,7 @@ export function BotSettings() {
     setBrandColor(bot.brand_color)
     setWidgetPosition(bot.widget_position)
     setStatus(bot.status)
+    setLeadCapture(bot.lead_capture_enabled)
   }, [bot.id])
 
   const handleSubmit = async (e: SubmitEvent<HTMLFormElement>) => {
@@ -146,6 +148,7 @@ export function BotSettings() {
           brand_color: brandColor,
           widget_position: widgetPosition,
           status,
+          lead_capture_enabled: leadCapture,
         })
         .eq('id', bot.id)
       if (error) throw error
@@ -344,6 +347,23 @@ export function BotSettings() {
             />
           </div>
         </div>
+
+        <label htmlFor="botLeadCapture" className="flex items-start gap-3 cursor-pointer">
+          <input
+            id="botLeadCapture"
+            type="checkbox"
+            checked={leadCapture}
+            onChange={(e) => setLeadCapture(e.target.checked)}
+            className="mt-0.5 w-4 h-4 accent-[var(--accent)] cursor-pointer"
+          />
+          <span>
+            <span className="block text-sm font-medium text-[var(--text)]">İletişim talebi al</span>
+            <span className="block text-xs text-[var(--text-muted)] mt-0.5">
+              Müşteri geri aranmak veya teklif almak isterse bot adını ve telefonunu ya da e-postasını
+              alır, onayını sorup Talepler sekmesine kaydeder.
+            </span>
+          </span>
+        </label>
 
         {successMessage && (
           <div className="text-sm text-[var(--success)]">{successMessage}</div>

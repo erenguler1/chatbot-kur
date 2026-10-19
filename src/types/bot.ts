@@ -28,6 +28,7 @@ export interface Bot {
   brand_color: string
   widget_position: BotWidgetPosition
   status: BotStatus
+  lead_capture_enabled: boolean
   created_at: string
   updated_at: string
   deleted_at: string | null

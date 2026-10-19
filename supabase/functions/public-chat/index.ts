@@ -4,7 +4,7 @@ import { buildSystemPrompt } from '../_shared/prompt.ts'
 import { retrieveDocuments, sourcesForAnswer } from '../_shared/retrieval.ts'
 import { isNoMatchAnswer, recordUnanswered } from '../_shared/unanswered.ts'
 import { streamReply } from '../_shared/claude.ts'
-import { createLead, LEAD_TOOL, LEAD_TOOL_NAME, type LeadContext } from '../_shared/leads.ts'
+import { createLead, LEAD_TOOL, LEAD_TOOL_NAME, redirectSuffix, type LeadContext } from '../_shared/leads.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -257,7 +257,10 @@ Deno.serve(async (req: Request) => {
                 ? createLead(supabase, botId, conversationId, input, leadContext, bot.name)
                 : Promise.resolve({ ok: false, message: 'Bilinmeyen araç' }),
           )
-          assistantContent = reply.text
+          // Lead capture off: fixed redirect to the business's own contact.
+          const suffix = redirectSuffix(bot, trimmedMessage, reply.text)
+          if (suffix) controller.enqueue(sseEvent({ type: 'chunk', text: suffix }))
+          assistantContent = reply.text + suffix
           const sources = sourcesForAnswer(
             retrieval.chunks,
             assistantContent,

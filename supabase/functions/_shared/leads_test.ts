@@ -1,5 +1,5 @@
 import { assert, assertEquals, assertFalse, assertStringIncludes } from 'jsr:@std/assert@1'
-import { isExplicitYes, isValidEmail, kvkkSentence, normalizePhone, validateLead, type LeadContext } from './leads.ts'
+import { contactRedirect, isExplicitYes, isValidEmail, kvkkSentence, normalizePhone, redirectSuffix, validateLead, wantsContact, type LeadContext } from './leads.ts'
 
 const BUSINESS = 'Makas Kuaför'
 
@@ -100,4 +100,32 @@ Deno.test('format errors and missing fields', () => {
   assertFalse(validateLead({ name: 'Ayşe', email: 'ayse@' }, ctx(), BUSINESS).ok)
   assertFalse(validateLead(null, ctx(), BUSINESS).ok)
   assertFalse(validateLead('Ayşe 0532', ctx(), BUSINESS).ok)
+})
+
+const off = { name: 'Makas Kuaför', lead_capture_enabled: false }
+const withContact = { ...off, contact_phone: '0212 555 12 12', contact_email: 'info@makas.com', contact_whatsapp: ' ', contact_address: null }
+
+Deno.test('contact requests are detected', () => {
+  for (const m of [
+    'Beni arayın', 'bana dönüş yapın, gelin paketi soracaktım', 'Benimle iletişime geçin', 'Telefonumu bırakayım',
+    'numaram 0532 123 45 67', 'mailim ayse@ornek.com', 'Geri arar mısınız?', 'Bana ulaşın lütfen', 'beni arayabilir misiniz',
+  ]) assert(wantsContact(m), m)
+  for (const m of ['Saat kaçta açılıyorsunuz?', 'Saç boyama fiyatı ne kadar?', 'Arada bir uğrarım', 'Fiyat 1500 TL mi?', 'Aranızda en iyi kim?']) {
+    assertFalse(wantsContact(m), m)
+  }
+})
+
+Deno.test('redirect uses only the business contact fields', () => {
+  assertEquals(
+    contactRedirect(withContact),
+    'Bu sohbet üzerinden iletişim bilgisi alınmıyor; lütfen Makas Kuaför ile doğrudan iletişime geçin. Telefon: 0212 555 12 12 · E-posta: info@makas.com',
+  )
+  assertEquals(contactRedirect(off), 'Bu sohbet üzerinden iletişim bilgisi alınmıyor; lütfen işletmeyle doğrudan iletişime geçin.')
+})
+
+Deno.test('redirect is appended only when lead capture is off and the customer asks', () => {
+  assertEquals(redirectSuffix(off, 'Beni arayın', 'Merhaba!'), `\n\n${contactRedirect(off)}`)
+  assertEquals(redirectSuffix(off, 'Saat kaç?', 'Merhaba!'), '')
+  assertEquals(redirectSuffix({ ...off, lead_capture_enabled: true }, 'Beni arayın', 'Merhaba!'), '')
+  assertEquals(redirectSuffix(off, 'Beni arayın', `Tamam. ${contactRedirect(off)}`), '')
 })

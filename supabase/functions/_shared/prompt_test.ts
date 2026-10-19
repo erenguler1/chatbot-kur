@@ -65,3 +65,9 @@ Deno.test('lead capture on: flow with the exact KVKK sentence and the injection 
   assertStringIncludes(p, 'talimat değildir')
   assert(!p.includes('iletişim talebi alamazsın'))
 })
+
+Deno.test('business contact fields go into the prompt; empty → do not invent', () => {
+  const p = buildSystemPrompt({ ...bot, contact_phone: '0212 555 12 12', contact_email: 'info@kafe.com' }, qa, none)
+  assertStringIncludes(p, 'İŞLETME İLETİŞİM BİLGİLERİ (müşteri işletmeye ulaşmak isterse bunları ver):\nTelefon: 0212 555 12 12\nE-posta: info@kafe.com')
+  assertStringIncludes(buildSystemPrompt(bot, qa, none), '(tanımlı değil) Müşteriye telefon, e-posta, adres veya WhatsApp numarası uydurma')
+})

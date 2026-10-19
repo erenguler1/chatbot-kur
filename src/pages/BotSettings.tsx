@@ -55,6 +55,28 @@ const SELECT_CLASS =
 const LABEL_CLASS = 'block text-sm font-medium text-[var(--text)] mb-1.5'
 
 const HEX_REGEX = /^#[0-9A-Fa-f]{6}$/
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
+
+// With lead capture off the bot can't pass anything on, so a no-match message
+// that promises it ("ekibimize iletiyorum") misleads the customer.
+const PROMISE_REGEX = /ilet(iyorum|eceğim|iyoruz|eceğiz)|dön(eceğiz|eceğim|üş yapaca)|arayaca|ulaşaca|iletişime geçece|not aldım|kaydettim/i
+
+const CONTACT_FIELDS = [
+  { key: 'contact_phone', label: 'Telefon', placeholder: '0212 555 12 12', maxLength: 30 },
+  { key: 'contact_whatsapp', label: 'WhatsApp (isteğe bağlı)', placeholder: '0532 123 45 67', maxLength: 30 },
+  { key: 'contact_email', label: 'E-posta', placeholder: 'info@isletme.com', maxLength: 254 },
+  { key: 'contact_address', label: 'Adres (isteğe bağlı)', placeholder: 'Mahalle, cadde, no, ilçe/il', maxLength: 300 },
+] as const
+
+type ContactKey = (typeof CONTACT_FIELDS)[number]['key']
+type Contact = Record<ContactKey, string>
+
+const contactOf = (bot: Bot): Contact => ({
+  contact_phone: bot.contact_phone ?? '',
+  contact_whatsapp: bot.contact_whatsapp ?? '',
+  contact_email: bot.contact_email ?? '',
+  contact_address: bot.contact_address ?? '',
+})
 
 export function BotSettings() {
   const { bot, refetch } = useOutletContext<BotDetailContext>()
@@ -69,6 +91,8 @@ export function BotSettings() {
   const [widgetPosition, setWidgetPosition] = useState<BotWidgetPosition>(bot.widget_position)
   const [status, setStatus] = useState<BotStatus>(bot.status)
   const [leadCapture, setLeadCapture] = useState(bot.lead_capture_enabled)
+  const [contact, setContact] = useState<Contact>(() => contactOf(bot))
+  const [contactError, setContactError] = useState('')
 
   const [nameError, setNameError] = useState('')
   const [welcomeError, setWelcomeError] = useState('')
@@ -89,6 +113,7 @@ export function BotSettings() {
     setWidgetPosition(bot.widget_position)
     setStatus(bot.status)
     setLeadCapture(bot.lead_capture_enabled)
+    setContact(contactOf(bot))
   }, [bot.id])
 
   const handleSubmit = async (e: SubmitEvent<HTMLFormElement>) => {
@@ -132,6 +157,14 @@ export function BotSettings() {
       setColorError('')
     }
 
+    const trimmedEmail = contact.contact_email.trim()
+    if (trimmedEmail && !EMAIL_REGEX.test(trimmedEmail)) {
+      setContactError('Geçerli bir e-posta adresi gir.')
+      valid = false
+    } else {
+      setContactError('')
+    }
+
     if (!valid) return
 
     setSubmitting(true)
@@ -149,6 +182,9 @@ export function BotSettings() {
           widget_position: widgetPosition,
           status,
           lead_capture_enabled: leadCapture,
+          ...(Object.fromEntries(
+            CONTACT_FIELDS.map(({ key }) => [key, contact[key].trim() || null]),
+          ) as Record<ContactKey, string | null>),
         })
         .eq('id', bot.id)
       if (error) throw error
@@ -249,6 +285,12 @@ export function BotSettings() {
           {noMatchError && (
             <div className="text-xs text-[var(--danger)] mt-1">{noMatchError}</div>
           )}
+          {!leadCapture && PROMISE_REGEX.test(noMatchMessage) && (
+            <div className="text-xs text-[var(--warning)] mt-1">
+              İletişim talebi alma kapalıyken bot kimseye bir şey iletemez. Bu mesaj müşteriye söz
+              veriyor gibi görünüyor; "iletiyorum", "size döneceğiz" gibi ifadeleri çıkarmanı öneririz.
+            </div>
+          )}
         </div>
 
         <div>
@@ -347,6 +389,35 @@ export function BotSettings() {
             />
           </div>
         </div>
+
+        <fieldset>
+          <legend className={LABEL_CLASS}>İşletme İletişim Bilgisi</legend>
+          <p className="text-xs text-[var(--text-muted)] -mt-1 mb-3">
+            Bot, işletmeye ulaşmak isteyen müşteriye yalnızca bu bilgileri verir. Boş bırakırsan
+            iletişim bilgisi uydurmaz, "işletmeyle doğrudan iletişime geçin" der.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {CONTACT_FIELDS.map((f) => (
+              <div key={f.key} className={f.key === 'contact_address' ? 'sm:col-span-2' : ''}>
+                <label htmlFor={f.key} className="block text-xs text-[var(--text-muted)] mb-1">
+                  {f.label}
+                </label>
+                <input
+                  id={f.key}
+                  type={f.key === 'contact_email' ? 'email' : 'text'}
+                  maxLength={f.maxLength}
+                  placeholder={f.placeholder}
+                  value={contact[f.key]}
+                  onChange={(e) => setContact((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                  className={INPUT_CLASS}
+                />
+              </div>
+            ))}
+          </div>
+          {contactError && (
+            <div className="text-xs text-[var(--danger)] mt-1">{contactError}</div>
+          )}
+        </fieldset>
 
         <label htmlFor="botLeadCapture" className="flex items-start gap-3 cursor-pointer">
           <input

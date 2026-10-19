@@ -20,7 +20,7 @@ Mockup'taki `initialBots` + `editBot*` form alanları + `createBotModal` alanlar
 | `description` | `text` |  | Mockup'taki `newBotDesc` alanı. Opsiyonel. |
 | `business_type` | `text` | `NOT NULL`, `CHECK (business_type IN (...))` | İşletme türü. Mockup seçenekleri: `cafe_restaurant`, `hair_barber`, `beauty_salon`, `digital_agency`, `ecommerce`, `other`. UI'da Türkçe gösterilecek, DB'de İngilizce/snake_case enum. |
 | `welcome_message` | `text` | `NOT NULL`, `DEFAULT 'Merhaba! Size nasıl yardımcı olabilirim?'` | Karşılama mesajı (`editBotGreeting`). |
-| `no_match_message` | `text` | `NOT NULL`, `DEFAULT 'Bu soruya henüz cevap veremiyorum, ekibimize iletiyorum.'` | Q&A eşleşmediğinde gösterilecek mesaj. Mockup'ta yok ama brief'te isteniyor — runtime için şart. |
+| `no_match_message` | `text` | `NOT NULL`, `DEFAULT 'Üzgünüm, bu konuda yardımcı olamıyorum. Başka bir sorunuz var mı?'` (023; eski: "…ekibimize iletiyorum.") | Q&A eşleşmediğinde gösterilecek mesaj. Mockup'ta yok ama brief'te isteniyor — runtime için şart. |
 | `tone` | `text` | `NOT NULL`, `DEFAULT 'friendly'`, `CHECK (tone IN ('friendly','formal','casual'))` | Cevap üslubu. Mockup'ta yok ama brief'te isteniyor — bkz. Açık Sorular. |
 | `brand_color` | `text` | `NOT NULL`, `DEFAULT '#f43f5e'`, `CHECK (brand_color ~ '^#[0-9A-Fa-f]{6}$')` | Hex renk. Mockup'ta `editBotColor` text input olarak duruyor → regex check ile validate. |
 | `widget_position` | `text` | `NOT NULL`, `DEFAULT 'bottom_right'`, `CHECK (widget_position IN ('bottom_right','bottom_left','middle_right','middle_left'))` | Widget konumu (`editBotPosition`). |

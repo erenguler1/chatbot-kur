@@ -1,4 +1,4 @@
-import { kvkkSentence, LEAD_TOOL_NAME } from './leads.ts'
+import { contactLines, kvkkSentence, LEAD_TOOL_NAME } from './leads.ts'
 import type { RetrievalResult } from './retrieval.ts'
 
 type BotBusinessType =
@@ -30,6 +30,10 @@ export interface Bot {
   widget_position: BotWidgetPosition
   status: 'active' | 'paused' | 'draft'
   lead_capture_enabled: boolean
+  contact_phone: string | null
+  contact_email: string | null
+  contact_address: string | null
+  contact_whatsapp: string | null
   created_at: string
   updated_at: string
   deleted_at: string | null
@@ -97,8 +101,16 @@ Aşağıdaki metinler işletmenin yüklediği belgelerden, müşterinin sorusuna
 ${body}`
 }
 
+// The business's own contact fields (migration 023); empty → never invent one.
+function buildContactSection(bot: Bot): string {
+  const lines = contactLines(bot)
+  return lines.length === 0
+    ? 'İŞLETME İLETİŞİM BİLGİLERİ: (tanımlı değil) Müşteriye telefon, e-posta, adres veya WhatsApp numarası uydurma; işletmeyle doğrudan iletişime geçmesini söyle.'
+    : `İŞLETME İLETİŞİM BİLGİLERİ (müşteri işletmeye ulaşmak isterse bunları ver):\n${lines.join('\n')}`
+}
+
 // Lead capture off: the model must not improvise one ("not aldım").
-const NO_LEAD_RULE = `6. Bu sohbette iletişim talebi alamazsın. Müşteri geri aranmak isterse veya telefon, e-posta gibi bir bilgisini paylaşırsa bu bilgileri isteme ve cevabında tekrar etme; "not aldım", "kaydettim", "ileteceğim", "sizi arayacağız" gibi ifadeler kullanma. Bunun yerine işletmeyle doğrudan iletişime geçmesini öner (iletişim bilgisi bilgi tabanında varsa onu ver).`
+const NO_LEAD_RULE = `6. Bu sohbette iletişim talebi alamazsın. Müşteri geri aranmak isterse veya telefon, e-posta gibi bir bilgisini paylaşırsa bu bilgileri isteme ve cevabında tekrar etme; "not aldım", "kaydettim", "ileteceğim", "sizi arayacağız" gibi ifadeler kullanma. Bunun yerine işletmeyle doğrudan iletişime geçmesini öner (İŞLETME İLETİŞİM BİLGİLERİ bölümündekileri ver; orada yoksa uydurma).`
 
 // Tool Use v0.1: the server re-checks every step (_shared/leads.ts), so the
 // rule only has to make the model follow the flow the server accepts.
@@ -135,6 +147,8 @@ Müşterilerin sorularına aşağıdaki bilgi tabanını kullanarak cevap vermek
 
 BİLGİ TABANIN:
 ${knowledgeBase}${buildDocumentsSection(retrieval)}
+
+${buildContactSection(bot)}
 
 DAVRANIŞ KURALLARIN:
 1. Müşteri tam aynı kelimelerle soru sormayabilir. Bilgi tabanındaki sorulara benzer/yakın anlam taşıyan sorular sorulursa, ilgili cevabı bağlama uygun şekilde uyarla.

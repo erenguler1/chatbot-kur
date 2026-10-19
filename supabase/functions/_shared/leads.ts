@@ -219,3 +219,55 @@ export async function createLead(
     }
   }
 }
+
+// ---- Lead capture off: fixed redirect ---------------------------------------
+// The prompt tells the model not to promise anything, but a model can still
+// slip ("ekibimiz size dönecek"). So when the customer asks to be contacted
+// or leaves a phone / e-mail, the server appends this sentence itself: it
+// only uses the business's own contact fields (migration 023), never invents.
+
+export interface BusinessContact {
+  name: string
+  contact_phone?: string | null
+  contact_email?: string | null
+  contact_address?: string | null
+  contact_whatsapp?: string | null
+}
+
+const oneLine = (s: string | null | undefined) => (s ?? '').replace(/\s+/g, ' ').trim()
+
+export function contactLines(bot: BusinessContact): string[] {
+  return [
+    ['Telefon', bot.contact_phone],
+    ['WhatsApp', bot.contact_whatsapp],
+    ['E-posta', bot.contact_email],
+    ['Adres', bot.contact_address],
+  ]
+    .map(([label, value]) => [label, oneLine(value)])
+    .filter(([, value]) => value)
+    .map(([label, value]) => `${label}: ${value}`)
+}
+
+export function contactRedirect(bot: BusinessContact): string {
+  const lines = contactLines(bot)
+  return lines.length === 0
+    ? 'Bu sohbet üzerinden iletişim bilgisi alınmıyor; lütfen işletmeyle doğrudan iletişime geçin.'
+    : `Bu sohbet üzerinden iletişim bilgisi alınmıyor; lütfen ${oneLine(bot.name)} ile doğrudan iletişime geçin. ${lines.join(' · ')}`
+}
+
+const CONTACT_INTENT =
+  /\b(beni ara|bizi ara|geri ara|ara(yin|yiniz|r misiniz|yabilir|sin|masini)|geri don|donus yap|donus sagla|bana don|donun|donebilir|iletisime gec|irtibata gec|ulasin|ulasir misiniz|ulasabilir misiniz|numarami|telefonumu|mailimi|e-?postami|bana yaz|yazar misiniz|haber ver)/
+const PHONE_LIKE = /\+?\(?\d[\d\s().-]{8,}\d/
+const EMAIL_LIKE = /[^\s@]+@[^\s@]+\.[^\s@]{2,}/
+
+export function wantsContact(message: string): boolean {
+  return CONTACT_INTENT.test(fold(message)) || EMAIL_LIKE.test(message) ||
+    (PHONE_LIKE.test(message) && message.replace(/\D/g, '').length >= 10)
+}
+
+// Text to append to the reply ('' when not needed or already there).
+export function redirectSuffix(bot: BusinessContact & { lead_capture_enabled: boolean }, message: string, reply: string): string {
+  if (bot.lead_capture_enabled || !wantsContact(message)) return ''
+  const sentence = contactRedirect(bot)
+  return reply.includes(sentence) ? '' : `${reply ? '\n\n' : ''}${sentence}`
+}

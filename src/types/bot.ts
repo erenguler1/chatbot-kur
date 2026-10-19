@@ -29,6 +29,10 @@ export interface Bot {
   widget_position: BotWidgetPosition
   status: BotStatus
   lead_capture_enabled: boolean
+  contact_phone: string | null
+  contact_email: string | null
+  contact_address: string | null
+  contact_whatsapp: string | null
   created_at: string
   updated_at: string
   deleted_at: string | null

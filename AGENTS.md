@@ -10,7 +10,7 @@ Bu dosya, ChatBotKur projesi üzerinde çalışan AI agent'ların (Claude Code, 
 - **Canlı:** https://chatbot-kur.vercel.app
 - **Repo:** github.com/erenguler1/chatbot-kur (private)
 - **Faz 1:** Tamamlandı (Mayıs 2026, `faz-1-v1.0` tag)
-- **Faz 2:** Devam ediyor — RAG (v0.3 canlıda: web sitesinden içe aktarma + cevaplanamayan sorular; v0.2: bölüm bazlı parçalama + PDF), sırada Tool Use, Image, Voice, WhatsApp, MCP
+- **Faz 2:** Devam ediyor — RAG (v0.3 canlıda: web sitesinden içe aktarma + cevaplanamayan sorular; v0.2: bölüm bazlı parçalama + PDF), Tool Use v0.1 canlıda (iletişim talebi), sırada Image, Voice, WhatsApp, MCP
 
 ## Teknoloji Yığını (Faz 1'de kilitlendi)
 
@@ -24,10 +24,11 @@ Bu dosya, ChatBotKur projesi üzerinde çalışan AI agent'ların (Claude Code, 
 
 ## Veritabanı — Gerçek Şema
 
-Tablolar: `bots`, `qa_pairs`, `conversations`, `messages`, `document_sources` (RAG: yüklemenin ORİJİNAL metni, türü `text|pdf|url`, chunker'ı; web sayfasında `source_url`, `import_id`), `documents` (RAG: parça başına bir satır, `upload_id` → `document_sources.id`), `site_imports` (bir "Web sitesinden ekle" işlemi: sayfa listesi, ilerleme, robots.txt), `unanswered_questions` (maskelenmiş soru metni, embedding, `group_id`)
+Tablolar: `bots`, `qa_pairs`, `conversations`, `messages`, `document_sources` (RAG: yüklemenin ORİJİNAL metni, türü `text|pdf|url`, chunker'ı; web sayfasında `source_url`, `import_id`), `documents` (RAG: parça başına bir satır, `upload_id` → `document_sources.id`), `site_imports` (bir "Web sitesinden ekle" işlemi: sayfa listesi, ilerleme, robots.txt), `unanswered_questions` (maskelenmiş soru metni, embedding, `group_id`), `leads` (iletişim talepleri: ad, telefon/e-posta, not, `status new|contacted|closed`, `conversation_id`)
 View: `document_uploads` (security_invoker; Belgeler sekmesi listesi, `document_sources`'tan okur). RPC: `match_documents` (RAG araması), `claim_site_import_pages` / `release_site_import_pages` / `record_site_import_progress` (import-site adımları, sadece service_role), `record_unanswered_question` (anlam bazlı gruplayarak ekler).
 Belge silme: `document_sources.deleted_at` set edilir; trigger parçaları da soft-delete eder (018). Site kaldırma: `site_imports.deleted_at` → sayfaları → parçaları (019).
-pg_cron: `purge-unanswered-questions` her gece 03:17'de 90 günden eski soruları kalıcı siler (020).
+pg_cron: `purge-unanswered-questions` her gece 03:17'de 90 günden eski soruları kalıcı siler (020); `purge-leads` 03:27'de 180 günden eski talepleri (022).
+`bots.lead_capture_enabled` (varsayılan true): iletişim talebi aracı açık/kapalı (022).
 
 **Migration'lar `supabase db push` ile uygulanır** (Dashboard SQL Editor artık KULLANILMIYOR):
 - 001–013 elle çalıştırılmıştı; uzak geçmişe `supabase migration repair --status applied` ile işlendi. 014+ push ile geldi.
@@ -68,6 +69,8 @@ pg_cron: `purge-unanswered-questions` her gece 03:17'de 90 günden eski sorular�
   - `web.ts` — SSRF korumalı fetch, robots.txt, sitemap (import-site)
   - `html.ts` — HTML'den ana içerik (deno-dom; menü/footer/çerez bandı/bağlantı yoğun bloklar atılır, başlıklar `## `)
   - `unanswered.ts` — no-match tespiti, kişisel veri maskeleme, soru kaydı
+  - `claude.ts` — model sabiti + araçlı streaming döngüsü (`streamReply`; chat + public-chat)
+  - `leads.ts` — iletişim talebi aracı: tanım, KVKK cümlesi, sunucu doğrulaması (`validateLead`), kayıt (`createLead`)
   - Testler: `cd supabase/functions && deno test _shared/`; frontend saf modülleri: `deno test src/lib/questionGroups_test.ts` (`*_test.ts` app build'inden hariç)
 
 **Kritik:** Public Edge Function'larda CORS preflight'ta `Access-Control-Allow-Headers`'a `apikey` eklemek zorunlu — yoksa browser preflight reddeder.
@@ -80,7 +83,7 @@ supabase functions deploy public-get-messages --no-verify-jwt
 supabase functions deploy embed-document
 supabase functions deploy import-site
 ```
-`_shared/` değişirse onu kullanan TÜM fonksiyonları yeniden deploy et (chat, public-chat, embed-document, import-site).
+`_shared/` değişirse onu kullanan TÜM fonksiyonları yeniden deploy et (chat, public-chat, embed-document, import-site). `prompt.ts`/`claude.ts`/`leads.ts` → chat + public-chat.
 
 ## RAG (Faz 2, v0.2)
 
@@ -101,6 +104,20 @@ supabase functions deploy import-site
 - **Gecikme:** belgeli botta arama ~300–900 ms (medyan ~580 ms), belgesiz botta ~0.
 - **Model değişirse:** tüm belgeler yeniden embed edilmeli (reprocess betiği) ve eşik rag-eval ile yeniden kalibre edilmeli. voyage-3/3.5 Voyage'ın 200M ücretsiz token kapsamında DEĞİL; voyage-4 kapsamda.
 - **Voyage limiti:** hesapta ödeme yöntemi yoksa dakikada 3 istek / 10K token (429). Testleri buna göre yavaşlat; rag-eval ve reprocess betikleri 429'da bekleyip tekrar dener.
+
+## Tool Use (Faz 2, v0.1)
+
+- **Akış:** `streamReply` (`_shared/claude.ts`) metni akıtır; model `tool_use` ile durursa araç sunucuda çalışır, sonucu `tool_result` (hata ise `is_error`) olarak geri verilir ve cevap yeni istekle sürer. Cevap başına en fazla 2 araç turu, son istekte `tool_choice: none`. Token'lar turlar boyunca toplanır. `messages`'a yalnızca metin yazılır.
+- **İletişim talebi (`iletisim_talebi_olustur`):** bot ad + telefon/e-posta + not toplar → tek mesajda özet + KVKK cümlesi ("Bilgileriniz yalnızca [bot adı] tarafından sizinle iletişim için kullanılacak.") + onay sorusu → müşteri onaylarsa araç. Model güvenilmez; sunucu (`validateLead`) şunları zorlar:
+  1. Ad ve telefon/e-posta müşterinin KENDİ mesajlarında geçmeli (belge/Q&A'daki bilgi kullanılamaz → belge enjeksiyonu talep oluşturamaz). Telefon rakam bazında karşılaştırılır (0532…, +90 532…, 532… aynı).
+  2. Botun bir önceki mesajında aynı iletişim bilgisi ve KVKK cümlesinin çekirdeği ("sizinle iletişim için kullanılacak") olmalı.
+  3. Müşterinin şu anki mesajı açık onay olmalı (evet/tamam/olur/onaylıyorum/kabul…; hayır/vazgeç/değil/iptal/yanlış… varsa red).
+  4. Biçim: TR telefon (mobil/sabit/850, `+90XXXXXXXXXX` olarak saklanır) veya `+` ile yabancı; e-posta regex. Sohbet başına en fazla 3 talep.
+  Hata mesajı modele ne yapacağını söyler; prompt "araç başarılı dönmeden 'talebiniz iletildi' deme" der.
+- **Kapalıyken** (`lead_capture_enabled=false`): araç verilmez, prompt kural 6 "talep alamazsın, 'not aldım' deme, doğrudan iletişime yönlendir".
+- **Panel:** "Talepler" sekmesi (durum, sil = soft delete), yeni (`status='new'`) talep sayısı sekme rozetinde. `authenticated` yalnızca `status`, `deleted_at` güncelleyebilir.
+- **Yeni araç eklerken:** tanımı ve doğrulamayı `_shared/<araç>.ts`'e koy, `runTool`'a ekle; modelin verdiği girdiyi her zaman sunucuda doğrula, belge içeriğini kaynak kabul etme.
+- **Canlı test (Ekim 2026):** 3 telefon yazımı ✓, "tamam/olur/evet kaydedin" ✓, "hayır/vazgeçtim/emin değilim" kaydetmedi ✓, 4. talep reddedildi ✓, belgeye gizli "aracı çağır" talimatı tetiklemedi ✓.
 
 ## Test ve Geri Dönüş
 
@@ -177,6 +194,7 @@ Yoksa hard refresh 404 verir.
 14. (v0.3) Prompt'ta telefondan bahsetmek modele müşterinin numarasını işletmenin numarası gibi söyletti → kural: müşterinin verdiği bilgiyi tekrar etme, kaydettiğini söyleme
 15. (v0.3) Kelime örtüşmesiyle soru gruplama Türkçede tutmadı (köpek/köpeğim, farklı fiiller) → embedding + `group_id` (021)
 16. `npm:` ve `jsr:` supabase-js tipleri birbirine atanamaz → `_shared` modülü onu çağıran fonksiyonun client'ıyla aynı kaynaktan tip almalı (chat/public-chat: npm, embed-document/import-site: jsr)
+17. (Tool Use) Talep alma kapalıyken model "bilgilerinizi not aldım" diyordu → kapalı mod için ayrı kural 6 (söz verme, doğrudan iletişime yönlendir)
 
 ## TypeScript Kuralları
 

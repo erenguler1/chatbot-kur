@@ -53,6 +53,15 @@ Faz 1 çalışıyor; Faz 2 üstüne kalite katar. Sırası kullanıcı geri bild
 - [ ] Eş anlamlı ifade eşleşmesi: "Geç kalırsam ne olur?" ↔ "gecikmelerde" (0,379, eşik altı); v0.3 canlı örnek: "Kronotrop ne zaman kuruldu?" ↔ "2012'de yola çıktık" (0,335). Olası çözüm: **hibrit arama** — anlam araması (pgvector) + anahtar kelime araması (Postgres full-text, `tsvector`, Türkçe yapılandırma/unaccent) birlikte, sonuçlar RRF (reciprocal rank fusion) ile birleştirilir; alternatif/ek: sorgu genişletme/yeniden yazma. rag-eval'e bu soruları ekleyip ölç
 - [ ] Eval setini büyüt (gerçek müşteri soruları geldikçe); şu an 36 + 106 soru, eşik payı dar (en yüksek yanlış 0,39 / eşik 0,40)
 
+### Tool Use
+- [x] İletişim talebi (lead capture) — özet + KVKK + açık onay, sunucu doğrulaması, Talepler sekmesi, rozet, aç/kapa, 180 gün (v0.1)
+- [ ] E-posta bildirimi (yeni talep): alan adı alınınca Resend (ücretsiz: ayda 3.000 / günde 100 e-posta, 1 alan adı; DNS doğrulaması gerekir). Şimdilik yalnızca panel rozeti
+- [ ] Randevu / rezervasyon talebi aracı (tarih-saat + hizmet; çalışma saatleriyle çakışma kontrolü)
+- [ ] "Şu an açık mısınız?" aracı: gerçek saat (Europe/Istanbul) + işletmenin yapılandırılmış çalışma saatleri (yeni alan) — model saati bilmiyor
+- [ ] Sipariş durumu sorgulama (e-ticaret; sipariş no + doğrulama, harici API/entegrasyon gerekir)
+- [ ] Talepler: Test Sohbeti'nden gelenleri ayır (kaynak alanı) ve dışa aktar (CSV)
+- [ ] Cevaplanamayan sorular için no-match'i metin yerine araçla işaretleme (yapılandırılmış sinyal)
+
 ### Kalite ve Eval
 - [ ] Eval set'leri (bot başına test soruları, otomatik scoring)
 - [ ] Bot kalite skoru dashboard'u

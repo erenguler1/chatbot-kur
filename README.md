@@ -1,151 +1,125 @@
 # ChatBotKur
 
-Türk işletmeleri için AI destekli chatbot platformu. Kafe, kuaför, e-ticaret gibi KOBİ'ler bot oluşturup web sitelerine embed edebilir, müşterilerin sorularını Claude AI ile cevaplandırabilir.
+**AI customer-support chatbots for Turkish small businesses — set up in minutes, no code.**
 
-🔗 Canlı: https://chatbot-kur.vercel.app
+Cafés, hair salons and online shops create a bot, feed it their menu, price list or website, and embed it on their site with one line of code. Customers chat anonymously; the bot answers from the business's own content, cites its sources, refuses to make things up, and hands real requests (call-backs, appointments) to the owner.
 
-Bu, Faz 1 MVP sürümüdür. Aktif geliştirme devam etmektedir.
+🔗 **Live:** [chatbot-kur.vercel.app](https://chatbot-kur.vercel.app)
 
-## Özellikler
+<!-- TODO: add a 10–15 s GIF here: upload a menu → ask "Pazartesi açık mısınız?" → answer with source -->
+<!-- ![demo](docs/demo.gif) -->
 
-- Email/şifre kimlik doğrulama (Supabase Auth)
-- Bot CRUD (oluştur, düzenle, soft-delete)
-- Soru-cevap çiftleri (bilgi tabanı)
-- Otomatik sistem prompt oluşturma (Türkçe, esnek davranış)
-- Streaming chat (Server-Sent Events, kelime kelime yanıt)
-- Public widget (embed script ile her siteye eklenebilir)
-- Anonim müşteri chat'i (login gerektirmez)
-- Token/maliyet takibi (her mesajda input/output sayısı)
-- Row Level Security (PostgreSQL RLS)
+---
 
-## Teknoloji Yığını
+## Highlights
 
-- **Frontend:** React 18 + Vite + TypeScript (strict) + Tailwind CSS v4
-- **Backend:** Supabase (PostgreSQL, Auth, Edge Functions)
-- **AI:** Anthropic Claude Sonnet 4.5 (streaming)
-- **Deploy:** Vercel
-- **UI:** Radix UI (Dialog, AlertDialog, Dropdown), Lucide Icons
-- **Router:** React Router v6
+- **Retrieval-augmented answers (RAG)** — businesses upload text, PDFs or simply paste their website URL; the bot answers from that content and shows which document it used.
+- **Measured, not guessed** — built a 36-question Turkish evaluation set (+106 off-topic / cross-tenant questions). Switching to heading-aware chunking raised retrieval hit rate from **67% → 97%** with **0 false matches**.
+- **Learns what it doesn't know** — unanswered questions are grouped by meaning and surfaced to the owner, who can turn them into a Q&A entry with one click.
+- **Tool use with server-side guardrails** — the bot can capture call-back requests, but a record is only written after the server verifies the customer's own details, a shown privacy (KVKK) notice and an explicit "yes". The model alone can never trigger it.
+- **Multi-tenant by design** — every business sees only its own bots, documents and requests, enforced in PostgreSQL Row Level Security and verified with cross-tenant tests.
+- **Security-minded** — SSRF protection for website import (private IPs, metadata endpoints, redirects), prompt-injection hardening for uploaded content, PII masking, automatic data retention (90 / 180 days).
 
-## Mimari
+## Features
 
-- **Auth:** Supabase Auth (email/password)
-- **RLS pattern:** Kullanıcılar sadece kendi bot'larını görür
-- **Streaming:** Edge Function → Anthropic streaming API → SSE → frontend ReadableStream reader
-- **Anonim chat:** `public-chat` Edge Function service_role ile çalışır (RLS bypass), `session_id` ile rate limit
-- **Embed:** Vanilla JS `embed.js` floating button + iframe içinde `Widget.tsx`
+| Area | What it does |
+|---|---|
+| Bot management | Create / edit / soft-delete bots, Q&A pairs, business contact info, working hours |
+| Knowledge base | Paste text, upload `.txt` / PDF (parsed in the browser), import up to 30 pages from a website, re-crawl, remove |
+| Chat | Streaming answers (SSE), Q&A takes priority over documents, sources shown in the owner's test chat |
+| Widget | One `<script>` tag adds a floating chat button to any site; anonymous, rate-limited |
+| Requests | Customers leave call-back requests after explicit consent; owner manages them in a "Talepler" inbox |
+| Insights | "Unanswered questions" grouped by meaning, ranked by frequency |
 
-## Yerel Kurulum
+## Architecture
 
-**Ön Koşullar:** Node.js 18+, npm, Supabase hesabı, Anthropic API hesabı + kredi, Supabase CLI
+```mermaid
+flowchart LR
+    subgraph Client
+        A[Owner dashboard<br/>React + TS]
+        W[Embed widget<br/>embed.js + iframe]
+    end
+    subgraph Supabase
+        F1[chat / public-chat<br/>Edge Functions]
+        F2[embed-document<br/>import-site]
+        DB[(PostgreSQL<br/>RLS + pgvector HNSW)]
+    end
+    V[Voyage AI<br/>embeddings]
+    C[Claude API<br/>streaming + tool use]
 
-1. Repo'yu klonla:
-
-   ```bash
-   git clone https://github.com/erenguler1/chatbot-kur.git
-   cd chatbot-kur
-   ```
-
-2. Bağımlılıkları yükle:
-
-   ```bash
-   npm install
-   ```
-
-3. Supabase projesi kur, URL ve anon key'i kopyala.
-
-4. `.env.local` dosyası oluştur:
-
-   ```env
-   VITE_SUPABASE_URL=https://your-project.supabase.co
-   VITE_SUPABASE_ANON_KEY=eyJ...
-   ```
-
-5. Migration'ları uygula: `supabase link --project-ref <ref>` ardından `supabase db push` (001-017).
-
-6. Anthropic API key'i Supabase'e ekle:
-
-   ```bash
-   supabase login
-   supabase link --project-ref YOUR_PROJECT_REF
-   supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
-   ```
-
-7. Edge Function'ları deploy et:
-
-   ```bash
-   supabase functions deploy chat
-   supabase functions deploy public-chat --no-verify-jwt
-   supabase functions deploy public-get-messages --no-verify-jwt
-   ```
-
-8. Dev server'ı başlat:
-
-   ```bash
-   npm run dev
-   ```
-### Deploy Notu
-
-`vercel.json` dosyası SPA (single-page app) fallback için **zorunludur** — siliyor veya değiştirmiyorsun. Olmadan `/dashboard`, `/bots/xxx` gibi URL'lere hard refresh atınca Vercel 404 döner. İçeriği:
-
-```json
-{ "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }] }
+    A --> F1 & F2
+    W --> F1
+    F2 -->|chunk + embed| V
+    F2 --> DB
+    F1 -->|embed question| V
+    F1 -->|top-k chunks + Q&A| DB
+    F1 -->|grounded prompt| C
+    C -->|SSE stream| F1
 ```
 
-Bu React Router'ın client-side routing'ini Vercel'e "her URL'i `index.html`'e yolla" diye söyler; sonrası React'in işi.
+**How a question is answered**
+1. The question is embedded (Voyage, 1024-dim) and matched against the bot's own chunks with cosine similarity (HNSW index); low-similarity chunks are dropped.
+2. Q&A pairs and retrieved chunks are added to the prompt — documents are marked as *data*, never as instructions.
+3. Claude streams the answer back over SSE. If nothing relevant was found, the bot says so and the question is logged for the owner.
+4. If the customer asks to be contacted, the bot may call the `create_lead` tool; the server validates consent before saving.
 
-## Embed Kullanımı
+## Tech stack
 
-Bot oluşturduktan sonra, kullanıcının botunu kendi web sitesine eklemesi için tek satırlık script:
+- **Frontend:** React, TypeScript (strict), Vite, Tailwind CSS, Radix UI
+- **Backend:** Supabase — PostgreSQL, Row Level Security, Auth, Edge Functions (Deno), pg_cron
+- **AI:** Anthropic Claude (streaming, tool use), Voyage AI embeddings, pgvector
+- **Deploy:** Vercel (frontend), Supabase (database + functions)
+
+## Engineering notes
+
+A few problems that shaped the design:
+
+- **The bot repeated the customer's phone number as the business's number.** A prompt rule meant to stop false promises caused it. Fixed by giving businesses structured contact fields and having the server — not the model — append the redirect sentence.
+- **A default fallback message taught the bot to make promises** ("I'll forward this to the team"). Lesson: templates and defaults shape model behaviour as much as the system prompt.
+- **Grouping unanswered questions by keywords failed in Turkish** ("köpek", "köpekler", "köpeğimle"). Switched to meaning-based grouping; embeddings are computed from the PII-masked text.
+- **Migrations had drifted** after manual SQL in the dashboard. Repaired the migration history so every schema change now goes through `supabase db push`.
+
+## Local setup
+
+**Prerequisites:** Node.js 18+, Supabase CLI, an Anthropic API key and a Voyage AI API key.
+
+```bash
+git clone https://github.com/erenguler1/chatbot-kur.git
+cd chatbot-kur
+npm install
+cp .env.local.example .env.local   # fill VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
+
+supabase link --project-ref <your-ref>
+supabase db push
+supabase secrets set ANTHROPIC_API_KEY=... VOYAGE_API_KEY=...
+
+supabase functions deploy chat
+supabase functions deploy embed-document
+supabase functions deploy import-site
+supabase functions deploy public-chat --no-verify-jwt
+supabase functions deploy public-get-messages --no-verify-jwt
+
+npm run dev
+```
+
+> `vercel.json` contains the SPA rewrite; without it, refreshing a route like `/bots/:id` returns 404 on Vercel.
+
+### Embed on any website
 
 ```html
-<script src="https://chatbot-kur.vercel.app/embed.js?botId=BOT_UUID_HERE"></script>
+<script src="https://chatbot-kur.vercel.app/embed.js?botId=YOUR_BOT_ID"></script>
 ```
 
-Bu, sayfanın sağ alt köşesine floating bir chat butonu ekler. Müşteri tıkladığında iframe içinde widget açılır.
+## Roadmap
 
-## Proje Yapısı
+- [x] Phase 1 — auth, bots, Q&A, streaming chat, embeddable widget
+- [x] RAG v0.1–v0.3 — documents, PDF, website import, evaluation set, unanswered-question insights
+- [x] Tool use v0.1 — consent-verified call-back requests
+- [ ] Appointment requests + "are you open now?" (working hours)
+- [ ] Hybrid search (semantic + keyword) for paraphrased questions
+- [ ] Image understanding, voice, WhatsApp channel, MCP integrations
 
-```
-chatbot-kur/
-├── public/
-│   ├── embed.js              # Vanilla JS embed script
-│   └── embed-test.html       # Yerel test sayfası
-├── src/
-│   ├── pages/                # Login, Dashboard, BotDetail, Widget, ...
-│   ├── hooks/                # useAuth, useBot, useStreamingChat, ...
-│   ├── components/           # BotActionMenu, QAFormDialog, ...
-│   ├── lib/                  # supabase client, promptBuilder, ...
-│   └── types/                # TypeScript interfaces
-├── supabase/
-│   ├── migrations/           # PostgreSQL şema değişiklikleri (001-017)
-│   └── functions/            # Edge Function'lar
-│       ├── chat/             # Login'li streaming chat
-│       ├── public-chat/      # Anonim streaming chat
-│       └── public-get-messages/  # Anonim history endpoint
-├── vercel.json               # SPA fallback config
-└── BACKLOG.md                # Faz 1 ✅ + Faz 2 yol haritası
-```
+## Author
 
-## Notlar
-
-- `vercel.json` SPA fallback için zorunlu. Olmazsa hard refresh 404 verir.
-- Supabase `service_role` key Edge Function'larda otomatik mevcut.
-- Public Edge Function'lar `--no-verify-jwt` flag ile deploy edilmeli.
-
-## Yol Haritası
-
-Detaylı liste [BACKLOG.md](./BACKLOG.md)'de. Faz 2 hedefleri:
-
-- Stripe ödeme entegrasyonu
-- Email bildirimleri
-- Multi-tenancy / workspace
-- Analytics dashboard
-- Widget customization
-- Bot Detay'da "Web Sitene Ekle" sekmesi
-
-## Geliştirici
-
-Eren Güler ([@erenguler1](https://github.com/erenguler1)) — 2026
-
-Bu proje [Anthropic Claude Code](https://claude.com/claude-code) yardımı ile geliştirilmiştir.
+**Eren Güler** — Computer Engineering, Eskişehir Osmangazi University
+[GitHub](https://github.com/erenguler1) · [LinkedIn](https://www.linkedin.com/in/eren-guler1)
